@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: agent_observability_db
+    environment:
+      POSTGRES_DB: agent_observability
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ingest_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent_observability_ingest_api
+    command: uvicorn backend.ingest_api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/agent_observability
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  query_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent_observability_query_api
+    command: uvicorn backend.query_api:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/agent_observability
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
