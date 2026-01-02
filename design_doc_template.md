@@ -1,452 +1,406 @@
-\[FEATURE\] Agent Observability Platform — Phase 1 (MVP)
-========================================================
+Phase 3 — Behavioral Drift Detection & Operational Guardrails
+-------------------------------------------------------------
 
-1\. Current Context
--------------------
+Current Context
+---------------
 
-### 1.1 System Context
+### System Overview
 
-*   AI agents are deployed in production using LLMs + tools + orchestration frameworks.
-    
-*   Current observability relies on:
-    
-    *   application logs
-        
-    *   infra metrics
-        
-    *   generic distributed tracing
-        
-*   These tools **do not explain agent decisions, semantic failures, or step-level behavior**.
-    
+The Agent Observability Platform currently consists of:
 
-### 1.2 Existing Architecture (Before This Change)
-
-*   Agent execution is opaque:
+*   **Phase 1 — Execution Observability**
     
-    *   reasoning is not visible
+    *   AgentRun, AgentStep, AgentFailure
         
-    *   tool failures are indistinguishable from infra failures
+    *   Execution order, latency, retries, failures
         
-    *   retries and decision paths are not reconstructable
+    *   Framework-agnostic ingest (FastAPI + SDK)
         
-*   Debugging relies on:
+*   **Phase 2 — Decision & Quality Observability**
     
-    *   ad-hoc logs
+    *   AgentDecision (explicit semantic decisions)
         
-    *   reproducing issues locally
+    *   AgentQualitySignal (observable outcome signals)
         
-    *   guesswork
+    *   Aggregation, correlation, version comparison
+        
+    *   Strict privacy boundaries (no prompts, no responses)
         
 
-### 1.3 Pain Points
+### Key Components
 
-*   Cannot answer **“why did the agent fail?”**
+*   Python SDK (agenttrace.py) — emits telemetry
     
-*   Cannot attribute **latency to agent steps**
+*   Ingest API — validates and persists data
     
-*   Cannot compare **agent behavior across versions**
+*   PostgreSQL — source of truth
     
-*   Cannot safely store traces due to privacy concerns
+*   Query API — aggregation & correlation
     
-
-2\. Problem Statement
----------------------
-
-> Build a Phase-1 Agent Observability system that makes agent behavior **visible, debuggable, and measurable** in production, without storing sensitive data.
-
-This system must allow engineers to:
-
-1.  Reconstruct a single agent run
-    
-2.  Identify slow or failing steps
-    
-3.  Classify failures semantically (tool / model / retrieval / orchestration)
+*   React UI — exploration and analysis
     
 
-3\. Requirements
-----------------
+### Pain Points / Gaps
 
-### 3.1 Functional Requirements (Phase-1)
+Despite Phase 2, the system **still requires manual inspection** to detect:
 
-**Must Have**
+*   Silent regressions after deployment
+    
+*   Gradual behavioral drift
+    
+*   Decision distribution instability
+    
+*   Signal degradation over time
+    
 
-*   Capture **agent runs** with ordered steps
+There is **no operational signal** that tells humans _when to look_.
+
+Requirements
+------------
+
+### Functional Requirements
+
+1.  **Behavioral Baseline Creation**
     
-*   Capture **step-level latency**
-    
-*   Capture **tool call metadata (safe only)**
-    
-*   Capture **semantic failure classification**
-    
-*   Query runs by:
-    
-    *   agent\_id
+    *   Generate stable statistical profiles from Phase-2 data
         
-    *   agent\_version
+    *   Support version-based and time-window baselines
         
-    *   status
-        
-    *   time range
-        
-*   UI to visualize:
+2.  **Drift Detection**
     
-    *   run list
+    *   Detect statistically significant changes in:
         
-    *   step timeline
+        *   Decision distributions
+            
+        *   Quality signal rates
+            
+        *   Behavioral latency patterns
+            
+    *   Compare live behavior against baselines
         
-    *   failure breakdown
+3.  **Drift Recording**
+    
+    *   Persist drift events with full explainability
         
-    *   step latency stats
+    *   Never overwrite historical baselines
+        
+4.  **Alert Emission**
+    
+    *   Emit non-blocking alerts for detected drift
+        
+    *   Alerts must be human-readable and neutral
+        
+5.  **UI Visualization**
+    
+    *   Show baseline vs observed behavior
+        
+    *   Visualize drift over time
+        
+    *   Support drill-down to underlying runs
         
 
-**Explicitly Out of Scope (Phase-1)**
-
-*   Raw prompt / response storage
-    
-*   Chain-of-thought storage
-    
-*   Automatic evaluation scoring
-    
-*   Replay / simulation
-    
-*   Hosted SaaS / multi-region
-    
-
-### 3.2 Non-Functional Requirements
+### Non-Functional Requirements
 
 #### Performance
 
-*   SDK overhead per step < **2% runtime**
+*   Drift detection must run asynchronously
     
-*   Ingest API p99 latency < **200ms**
+*   Aggregation queries must not block ingest
+    
+*   P95 drift computation < 5 seconds per agent
     
 
 #### Scalability
 
-*   Handle bursty telemetry (many small writes)
+*   Support millions of runs
     
-*   Support thousands of runs/day (Phase-1 scale)
+*   Support thousands of agents
     
-
-#### Reliability
-
-*   At-least-once delivery from SDK
-    
-*   Idempotent ingest via run\_id
+*   Baselines must be reusable and cacheable
     
 
-#### Observability (of the observability system)
+#### Observability
 
-*   API request latency
+*   Phase 3 must emit its own metrics
     
-*   Ingest error rate
-    
-*   Dropped telemetry count
+*   Drift detection must be auditable and explainable
     
 
-#### Security & Privacy
+#### Security
 
-*   No raw prompts or responses
+*   Phase 3 must not introduce any new sensitive data
     
-*   Metadata allow-list only
-    
-*   API key–based authentication
+*   Baselines and drift events must contain no free text
     
 
-4\. Design Principles
----------------------
+Design Decisions
+----------------
 
-1.  **Decision-centric observability**Observe _what the agent did_, not just what code executed.
-    
-2.  **Privacy-by-default**Unsafe data is never collected in Phase-1.
-    
-3.  **Opinionated, minimal MVP**Fewer concepts, fewer schemas, fewer endpoints.
-    
-4.  **Extensible foundation**Phase-2 features must build on Phase-1 data without migration pain.
-    
+### 1\. Drift Detection via Distribution Comparison (not heuristics)
 
-5\. Design Decisions
---------------------
+**Decision:**Use statistical comparison of distributions instead of rule-based heuristics.
 
-### 5.1 Trace Model: Agent-Native Traces
+**Rationale:**
 
-**Decision:** Use an AgentRun → AgentStep\[\] → Failure model**Why:**
-
-*   Mirrors agent control flow
+*   Heuristics do not generalize across domains
     
-*   Easier to reason than raw logs
+*   Distribution deltas are domain-agnostic
     
-*   Enables timeline visualization
-    
-*   Supports semantic failure attribution
-    
-
-**Alternatives Considered:**
-
-*   Plain logs (rejected: unstructured, non-queryable)
-    
-*   Generic OTel spans only (rejected: no semantic meaning)
-    
-
-### 5.2 Failure Classification
-
-**Decision:** Use (failure\_type, failure\_code) taxonomy**Why:**
-
-*   Distinguishes semantic failures from infra failures
-    
-*   Enables aggregation and prioritization
-    
-*   Keeps Phase-1 simple
+*   Supports version comparison naturally
     
 
 **Trade-offs:**
 
-*   Requires SDK discipline
+*   More compute than simple thresholds
     
-*   Some failures may be misclassified initially
-    
-
-### 5.3 Retry Modeling
-
-**Decision:** Each retry is a **separate step span****Why:**
-
-*   Enables accurate latency attribution
-    
-*   Makes retries visible in UI
-    
-*   Prevents hidden performance regressions
+*   Requires minimum sample sizes
     
 
-### 5.4 Storage Choice
+### 2\. Baselines as First-Class Immutable Objects
 
-**Decision:** PostgreSQL for Phase-1**Why:**
+**Decision:**Introduce explicit behavior\_baselines instead of implicit “last version”.
 
-*   Fast to ship
+**Rationale:**
+
+*   Prevents silent baseline shifts
     
-*   Strong consistency
+*   Enables auditability
     
-*   Good enough for MVP scale
-    
-
-**Future Path:**
-
-*   ClickHouse / columnar DB for Phase-2+
+*   Allows manual approval in regulated domains
     
 
-6\. Technical Design
---------------------
+**Alternatives Considered:**
 
-### 6.1 Core Components
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class AgentTracer:      """Client-side SDK entrypoint for capturing agent runs."""  class RunContext:      """Represents a single agent run."""  class StepContext:      """Represents a single step span with timing and metadata."""   `
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class IngestAPI:      """Receives validated agent traces and persists them."""  class QueryAPI:      """Serves runs, traces, and aggregated stats to UI."""   `
-
-### 6.2 Data Models (Conceptual)
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class AgentRun:      run_id: UUID      agent_id: str      agent_version: str      environment: str      status: str      started_at: datetime      ended_at: datetime   `
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class AgentStep:      step_id: UUID      run_id: UUID      seq: int      step_type: str      name: str      latency_ms: int      metadata: dict   `
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class AgentFailure:      run_id: UUID      step_id: Optional[UUID]      failure_type: str      failure_code: str      message: str   `
-
-### 6.3 Integration Points
-
-*   **Agent SDK → Ingest API**
+*   Rolling window comparison → rejected (unstable)
     
-    *   HTTPS JSON
+*   Dynamic baselines → rejected (hard to reason about)
+    
+
+### 3\. Alerts as Observational Signals (not actions)
+
+**Decision:**Alerts are informational only.
+
+**Rationale:**
+
+*   Avoids system becoming a controller
+    
+*   Preserves human-in-the-loop responsibility
+    
+*   Prevents unsafe automation
+    
+
+**Trade-offs:**
+
+*   Requires human interpretation
+    
+*   No auto-mitigation
+    
+
+Technical Design
+----------------
+
+### 1\. Core Components
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class BehaviorProfileBuilder:      """      Builds statistical behavior profiles from Phase 2 data.      """      def build_profile(self, agent_id: str, agent_version: str, window: TimeWindow) -> BehaviorProfile:          pass  class DriftDetectionEngine:      """      Compares live behavior against baselines and detects drift.      """      def detect(self, baseline: BehaviorBaseline, observed: BehaviorProfile) -> list[BehaviorDrift]:          pass  class AlertEmitter:      """      Emits human-readable alerts for detected drift.      """      def emit(self, drift: BehaviorDrift) -> None:          pass   `
+
+### 2\. Data Models
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   class BehaviorProfile(BaseModel):      profile_id: UUID      agent_id: str      agent_version: str      environment: str      window_start: datetime      window_end: datetime      decision_distributions: dict      signal_distributions: dict      latency_stats: dict  class BehaviorBaseline(BaseModel):      baseline_id: UUID      profile_id: UUID      baseline_type: Literal["version", "time_window", "manual"]      approved_by: Optional[str]      approved_at: Optional[datetime]  class BehaviorDrift(BaseModel):      drift_id: UUID      baseline_id: UUID      agent_id: str      agent_version: str      drift_type: Literal["decision", "signal", "latency"]      metric: str      baseline_value: float      observed_value: float      delta: float      significance: float      detected_at: datetime   `
+
+### 3\. Integration Points
+
+*   **Data Source:** Phase 2 aggregated queries
+    
+*   **APIs:**
+    
+    *   /v1/baselines/create
         
-    *   Batched async delivery
+    *   /v1/drift/run
         
-*   **UI → Query API**
-    
-    *   Read-only queries
+    *   /v1/drift/list
         
-*   **No direct DB access from UI**
+*   **UI:** Dashboards consume read-only drift endpoints
+    
+*   **Alerting:** Optional webhook integration (Slack, PagerDuty)
     
 
-### 6.4 File Changes (Phase-1)
+### 4\. Files Changes
 
-**New**
+**Backend**
 
-*   sdk/agenttrace.py
+*   backend/behavior\_profiles.py
     
-*   backend/ingest\_api.py
+*   backend/baselines.py
     
-*   backend/query\_api.py
+*   backend/drift\_engine.py
     
-*   db/schema.sql
+*   backend/alerts.py
     
-*   ui/RunExplorer.tsx
-    
-*   ui/TraceTimeline.tsx
+*   backend/query\_phase3.py
     
 
-**No other files impacted**
+**Database**
 
-7\. Implementation Plan
------------------------
-
-### Phase 1.1 — Core Telemetry (Week 1)
-
-*   Agent SDK (Python)
-    
-*   AgentRun + AgentStep schema
-    
-*   Ingest API
-    
-*   Postgres persistence
+*   db/migrations/003\_phase3\_behavior.sql
     
 
-### Phase 1.2 — Query & UI (Week 2)
+**UI**
 
-*   Run Explorer
+*   ui/components/BehaviorDashboard.tsx
     
-*   Trace Timeline
+*   ui/components/DriftTimeline.tsx
     
-*   Failure Breakdown
-    
-*   Step Latency Stats
+*   ui/components/BaselineManager.tsx
     
 
-### Phase 1.3 — Hardening (Week 3)
+Implementation Plan
+-------------------
 
-*   Retry modeling
+### Phase 1: Core Computation
+
+*   Behavior profile builder
     
-*   Failure → step linkage enforcement
+*   Baseline persistence
     
-*   Index optimization
-    
-*   Example agent integration
+*   Unit tests for distribution math
     
 
-8\. Testing Strategy
---------------------
+### Phase 2: Drift Detection
+
+*   Drift detection engine
+    
+*   Configurable thresholds
+    
+*   Drift persistence
+    
+
+### Phase 3: Production Readiness
+
+*   Alerting integration
+    
+*   UI dashboards
+    
+*   Performance tuning
+    
+*   Feature flags
+    
+
+Testing Strategy
+----------------
 
 ### Unit Tests
 
-*   Step timing accuracy
+*   Distribution calculation correctness
     
-*   Failure classification correctness
+*   Drift threshold logic
     
-*   Idempotent ingest behavior
+*   Significance calculation
+    
+*   Baseline immutability
     
 
 ### Integration Tests
 
-*   End-to-end agent run ingestion
+*   End-to-end baseline → drift detection
     
-*   Failure scenarios:
+*   Version comparison scenarios
     
-    *   tool timeout
-        
-    *   schema failure
-        
-    *   empty retrieval
-        
-
-### Manual Validation
-
-*   Reconstruct failed run visually
-    
-*   Confirm latency attribution
-    
-*   Verify no sensitive data stored
+*   Feature flag off → no drift
     
 
-9\. Observability (of This System)
-----------------------------------
+Observability
+-------------
 
 ### Logging
 
-*   Ingest success/failure
+*   Drift detection start/end
     
-*   Schema validation errors
+*   Baseline creation events
     
-*   Dropped telemetry warnings
+*   Alert emission events
     
 
 ### Metrics
 
-*   runs\_ingested\_total
+*   phase3\_profiles\_created\_total
     
-*   ingest\_latency\_p95
+*   phase3\_drifts\_detected\_total
     
-*   dropped\_runs\_total
+*   phase3\_drift\_detection\_latency\_ms
     
-
-10\. Known Limitations (Phase-1)
---------------------------------
-
-*   No automatic quality scoring
-    
-*   No replay capability
-    
-*   Manual interpretation required for decision quality
-    
-*   Postgres may not scale indefinitely
+*   phase3\_alerts\_emitted\_total
     
 
-11\. Future Considerations (Phase-2+)
--------------------------------------
+Future Considerations
+---------------------
 
 ### Potential Enhancements
 
-*   Decision reasoning summaries
+*   Multi-baseline comparison
     
-*   Version diffing
+*   Seasonal behavior modeling
     
-*   Replay with mocked tools
-    
-*   Eval pipelines
-    
-*   Hosted multi-tenant SaaS
+*   User-defined drift metrics
     
 
-12\. Dependencies
------------------
+### Known Limitations
 
-### Runtime
+*   Requires sufficient sample size
+    
+*   Drift ≠ correctness
+    
+*   Manual interpretation required
+    
 
-*   Python 3.10+
+Dependencies
+------------
+
+### Development Dependencies
+
+*   Python 3.11+
+    
+*   NumPy / SciPy (statistical functions)
+    
+*   SQLAlchemy
     
 *   FastAPI
     
-*   PostgreSQL
-    
-*   React
+*   React + Recharts
     
 
-### Development
+Security Considerations
+-----------------------
 
-*   pytest
+*   No new data ingestion
     
-*   black / ruff
+*   No free-text fields
     
-*   docker-compose
+*   Read-only access for UI
     
-
-13\. Security Considerations
-----------------------------
-
-*   API key–based auth
-    
-*   Metadata allow-list enforcement
-    
-*   No PII or prompt content accepted
-    
-*   Encrypted DB at rest (deployment dependent)
+*   Baseline approval audit trail
     
 
-14\. Rollout Strategy
----------------------
+Rollout Strategy
+----------------
 
-1.  Local development with sample agent
+1.  Development — feature flags off
     
-2.  Internal testing with synthetic failures
+2.  Testing — synthetic drift scenarios
     
-3.  Staging deployment
+3.  Staging — shadow drift detection
     
-4.  Limited production rollout
+4.  Production — alerts disabled
     
-5.  Monitoring and feedback loop
+5.  Gradual alert enablement
+    
+
+References
+----------
+
+*   Phase 1 Design Doc — Execution Observability
+    
+*   Phase 2 Design Doc — Decision & Quality Signals
+    
+*   Internal Privacy Guidelines
+    
+*   Statistical Drift Detection Literature

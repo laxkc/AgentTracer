@@ -1,3 +1,3 @@
 """
-Agent Observability Platform - Test Suite
+AgentTracer Platform - Test Suite
 """

@@ -1,6 +1,6 @@
 # Component Responsibilities & Separation of Concerns
 
-This document defines clear boundaries and responsibilities for each component in the Agent Observability Platform.
+This document defines clear boundaries and responsibilities for each component in the AgentTracer Platform.
 
 ## Table of Contents
 - [Component Responsibility Matrix](#component-responsibility-matrix)

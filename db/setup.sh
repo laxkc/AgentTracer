@@ -1,5 +1,5 @@
 #!/bin/bash
-# Agent Observability Platform - Database Setup Script
+# AgentTracer Platform - Database Setup Script
 #
 # This script initializes the PostgreSQL database and creates the schema.
 # Usage: ./db/setup.sh
@@ -14,7 +14,7 @@ DB_HOST="localhost"
 DB_PORT="5432"
 
 echo "========================================="
-echo "Agent Observability - Database Setup"
+echo "AgentTracer - Database Setup"
 echo "========================================="
 echo ""
 

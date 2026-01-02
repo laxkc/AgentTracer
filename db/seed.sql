@@ -1,4 +1,4 @@
--- Agent Observability Platform - Seed Data
+-- AgentTracer Platform - Seed Data
 --
 -- This file contains sample data for development and testing.
 -- It demonstrates the Phase-1 data model with privacy-safe examples.

@@ -1,6 +1,6 @@
-# Agent Observability Platform - React UI
+# AgentTracer Platform - React UI
 
-Modern React + TypeScript UI for the Agent Observability Platform.
+Modern React + TypeScript UI for the AgentTracer Platform.
 
 ## Features
 

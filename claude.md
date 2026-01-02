@@ -1,300 +1,383 @@
-Best Practices & Behavioral Guide for Claude-based Coding
----------------------------------------------------------
+Phase 3 — Behavioral Drift Detection & Guardrails
+-------------------------------------------------
 
-**Project:** Agent Observability Platform — Phase 1
+Purpose
+-------
 
-🧠 1. High-Level Intent (What You Are Building)
------------------------------------------------
+This document defines **how AI coding assistants (Claude Code)** must be used when working on **Phase 3** of the Agent Observability Platform.
 
-You are building an **Agent Observability Platform Phase-1 MVP** with these capabilities:
+Phase 3 is **analysis-only**, **read-only**, and **non-interventional**.
 
-### Observability Goals
+Claude is permitted to:
 
-*   Capture **structured agent runs**
+*   assist with **derivation logic**
     
-*   Record **ordered steps with latency**
+*   generate **queries**
     
-*   Detect semantic **failures with taxonomy**
+*   create **visualization logic**
     
-*   Enable UI to show:
-    
-    *   run list
-        
-    *   step timeline
-        
-    *   failure breakdown
-        
-    *   step latency stats
-        
-
-### Key Principles
-
-*   Strict **privacy by default**
-    
-*   No raw prompts or raw responses
-    
-*   Reliable ingestion and query APIs
-    
-*   Minimal but accurate telemetry
-    
-*   Easy debugging and visual inspection
+*   help reason about **statistical drift**
     
 
-📜 2. Claude’s Code Generation Mission
---------------------------------------
+Claude is **not permitted** to:
 
-When asked to generate or modify code, **always follow this pattern**:
-
-1.  **Restate Intent**Begin by stating which requirement or design principle the change satisfies.
+*   invent agent behavior
     
-2.  **Scope Restriction**Ensure code changes stay within **Phase-1 MVP scope**:
+*   suggest agent fixes
     
-    *   No prompt storage
-        
-    *   No automatic eval
-        
-    *   No replay
-        
-    *   No chain-of-thought retention
-        
-3.  **Safety First**⚠ Code must never introduce:
+*   introduce control loops
     
-    *   Raw prompts
-        
-    *   Raw outputs
-        
-    *   PII
-        
-    *   Chain-of-thought
-        
-4.  **Explicit Reasoning Explanation**Provide internal reasoning comments (in natural language) about why a piece of code satisfies the design.
-    
-5.  **Testable, Self-Documented Code**Include:
-    
-    *   clear type hints
-        
-    *   docstrings
-        
-    *   examples where necessary
-        
-
-🚧 3. Hard Constraints (Non-Negotiable)
----------------------------------------
-
-### ❌ Forbidden
-
-*   Storing any text that could reveal prompts or LLM output
-    
-*   Capturing chain of thought
-    
-*   Feature-creep beyond Phase-1 telemetry
+*   infer reasoning or intent
     
 
-### ✅ Mandatory
-
-*   Steps must be ordered with seq
-    
-*   Failures must attach to a step\_id
-    
-*   Retries must be separate step spans
-    
-*   Structured failure types only (no free-form strings)
-    
-*   No response rewriting logic
-    
-
-⚙️ 4. Behavioral Coding Guidelines
-----------------------------------
-
-### 4.1 Naming & Types
-
-Follow these conventions:
-
-*   AgentRun, AgentStep, AgentFailure must be consistent with design doc
-    
-*   Use strict enum sets for:
-    
-    *   step\_type
-        
-    *   failure\_type
-        
-    *   failure\_code
-        
-
-Example:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   StepType = Literal["plan", "retrieve", "tool", "respond"]  FailureType = Literal["tool", "model", "retrieval", "orchestration"]   `
-
-### 4.2 API Contract Enforcement
-
-#### Ingest API (POST /v1/runs)
-
-*   Must validate:
-    
-    *   run\_id UUID
-        
-    *   steps array with increasing seq
-        
-    *   failure object if present
-        
-
-Do not relax schema constraints.
-
-### 4.3 Data Storage
-
-#### Postgres Schema (Phase-1)
-
-Tables must include:
-
-*   agent\_runs
-    
-*   agent\_steps
-    
-*   agent\_failures
-    
-
-Do not add prompt text columns.
-
-### 4.4 SDK Rules
-
-The SDK must:
-
-*   Generate step spans automatically
-    
-*   Accept safe metadata only
-    
-*   Associate failures with steps
-    
-*   Batch send telemetry
-    
-
-Do not infer intent or modify agent logic.
-
-🧪 5. Testing & Validation
+Core Rule (Non-Negotiable)
 --------------------------
 
-Every code change must include:
+> **Claude may only help observe and describe agent behavior — never influence, evaluate, or optimize it.**
 
-### Unit Tests
+If a Claude-generated change:
 
-*   Validate schema enforcement
+*   modifies agent execution
     
-*   Test failure classification behavior
+*   prescribes actions
     
-*   Test retry modeling rules
+*   judges correctness
     
-
-### Integration Tests
-
-*   Simulate real agent runs (including retries)
-    
-*   Ensure telemetry persists and is queryable
-    
-*   Ensure UI can reconstruct timelines
+*   introduces feedback loops
     
 
-Testing must avoid actual NLP calls (mock where necessary).
+→ **Reject the change.**
 
-📈 6. Observability of the Observability System
------------------------------------------------
+Phase 3 Scope (What Claude Is Allowed to Work On)
+-------------------------------------------------
 
-You should add observability _about_ the telemetry system itself:
+Claude **may assist with**:
 
-**Metrics**
+### ✅ Allowed Domains
 
-*   runs\_ingested\_total
+*   Drift detection logic
     
-*   ingest\_latency\_p95
+*   Baseline comparison algorithms
     
-*   dropped\_runs\_total
+*   Statistical aggregation
     
-
-**Logs**
-
-*   Ingest success / failure
+*   Trend analysis
     
-*   Schema validation errors
+*   Visualization components
     
-
-These should _not_ include sensitive info.
-
-🧠 7. Code Structure & Project Modularity
------------------------------------------
-
-### Backend (FastAPI)
-
-*   ingest.py: Ingest routes + schema validation
+*   Alert threshold definitions
     
-*   query.py: Query routes + stats endpoints
+*   Read-only APIs
     
-*   models.py: DB models + migrations
+*   Derived data models
+    
+*   Documentation
     
 
-### SDK (Python)
+### ❌ Forbidden Domains
 
-*   agenttrace.py: Tracer + context managers
+*   Prompt engineering
     
-*   telemetry.py: Async sender
+*   Agent logic
+    
+*   Retry policies
+    
+*   Tool selection logic
+    
+*   Auto-remediation
+    
+*   Quality scoring
+    
+*   “Health” metrics
+    
+*   Agent ranking
+    
+*   Recommendations or fixes
     
 
-### UI (React)
+Data Access Rules
+-----------------
 
-*   RunExplorer.tsx
+Claude **must assume**:
+
+*   ❌ No access to prompts
     
-*   TraceTimeline.tsx
+*   ❌ No access to responses
+    
+*   ❌ No access to reasoning text
+    
+*   ❌ No access to user input
+    
+*   ❌ No access to retrieved documents
     
 
-Each module must be self-contained and clearly documented.
+All Phase 3 inputs are:
 
-🤖 8. Claude-specific Prompting Rules
+*   Aggregated
+    
+*   Structured
+    
+*   Privacy-safe
+    
+*   Derived from Phase 2 only
+    
+
+If Claude proposes accessing raw data → **invalid**.
+
+Mental Model Claude Must Follow
+-------------------------------
+
+Claude must reason using this pipeline only:
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   Phase 2 Data     ↓  Historical Baseline     ↓  Observed Distribution     ↓  Statistical Comparison     ↓  Drift Signal   `
+
+Claude **must not** introduce:
+
+*   Causal claims
+    
+*   Optimization logic
+    
+*   Decision enforcement
+    
+
+Only **observed change** is allowed.
+
+Drift Semantics (Strict)
+------------------------
+
+Claude must treat “drift” as:
+
+> A statistically significant change in a distribution relative to a baseline.
+
+Claude **must not** equate drift with:
+
+*   failure
+    
+*   bug
+    
+*   regression
+    
+*   correctness
+    
+*   quality
+    
+
+Drift is **descriptive**, not evaluative.
+
+Language Constraints (Very Important)
 -------------------------------------
 
-When generating new code:
+Claude must use **neutral, observational language only**.
 
-1.  “This code implements the Phase-1 requirement to capture ordered telemetry runs.”
+### ✅ Approved Language
+
+*   “Observed increase”
     
-2.  **Cite Constraints**Include at least one reference to:
+*   “Distribution shifted”
     
-    *   privacy constraint
-        
-    *   retry modeling
-        
-    *   failure taxonomy
-        
-3.  **Comment Rationale**Add comments explaining the design choice.
+*   “Correlates with”
     
-4.  **Example Input/Output**Show test cases where applicable.
+*   “Detected deviation”
+    
+*   “Baseline comparison shows”
     
 
-📌 9. Example Good Prompt to Claude
------------------------------------
+### ❌ Forbidden Language
 
-> _“Generate the FastAPI /v1/runs ingest route. The route must validate the AgentRun schema with ordered steps, map failures to a step ID, and persist to Postgres. Do not store prompts or responses. Include unit tests for schema validation. Comment on why privacy constraints are upheld.”_
-
-This ensures results follow design.
-
-🧩 10. Example Bad Prompt to Claude
------------------------------------
-
-❌ _“Add a feature to store raw prompts from agent runs for debugging.”_This violates Phase-1 privacy rules.
-
-Claude should refuse or suggest an alternative approach (e.g., storing safe metadata only).
-
-🛡 11. Handling Ambiguity
--------------------------
-
-If Claude is asked to implement something:
-
-*   think: “Does it strictly improve Phase-1 observability without violating privacy?”
+*   “Better / Worse”
     
-*   if answer is **no** → **do not implement**
+*   “Correct / Incorrect”
+    
+*   “Optimal / Suboptimal”
+    
+*   “Fix this”
+    
+*   “Agent should”
+    
+*   “Improve performance”
     
 
-Instead, provide a short TODO with rationale:
+If Claude outputs judgmental language → **rewrite required**.
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   # TODO: Phase-2 Feature — requires revisit   `
+Alerts & Notifications
+----------------------
 
-📜 12. Acceptance Criteria for AI Output
+Claude may help design alerts **only if**:
+
+*   Alerts are informational
+    
+*   Alerts describe _what changed_
+    
+*   Alerts reference the baseline
+    
+*   Alerts do not prescribe actions
+    
+
+Claude must never suggest:
+
+*   automatic rollback
+    
+*   retry tuning
+    
+*   logic changes
+    
+*   human instructions
+    
+
+Code Generation Rules
+---------------------
+
+Claude-generated code **must**:
+
+*   Be read-only with respect to Phase 1 & 2 data
+    
+*   Use explicit typing
+    
+*   Include docstrings
+    
+*   Avoid side effects
+    
+*   Be deterministic
+    
+*   Avoid hidden heuristics
+    
+
+Claude-generated code **must not**:
+
+*   Write to agent tables
+    
+*   Modify agent state
+    
+*   Call agent SDKs
+    
+*   Trigger workflows
+    
+
+Statistical Discipline
+----------------------
+
+Claude may propose:
+
+*   KS tests
+    
+*   Chi-square tests
+    
+*   Jensen–Shannon divergence
+    
+*   Percent delta thresholds
+    
+*   Time-window comparisons
+    
+
+Claude **must**:
+
+*   Explain assumptions
+    
+*   Avoid overfitting
+    
+*   Avoid “magic thresholds”
+    
+*   Allow human override
+    
+
+UI & Visualization Rules
+------------------------
+
+Claude may help generate:
+
+*   Charts
+    
+*   Tables
+    
+*   Dashboards
+    
+
+But must ensure:
+
+*   No single “health score”
+    
+*   No rankings
+    
+*   No recommendations
+    
+*   No prescriptive annotations
+    
+
+Visuals must be:
+
+*   Comparative
+    
+*   Time-based
+    
+*   Distribution-oriented
+    
+
+Failure Scenarios Claude Must Anticipate
 ----------------------------------------
 
-Every code snippet must:✔ Compile / run✔ Respect design constraints✔ Come with tests✔ Be documented✔ Not introduce forbidden data capture
+Claude should proactively consider:
+
+*   Sparse data
+    
+*   Cold start baselines
+    
+*   Seasonal behavior
+    
+*   Legitimate behavior changes
+    
+*   Version rollouts
+    
+
+Claude **must not** assume drift = problem.
+
+Human-in-the-Loop Boundary
+--------------------------
+
+Claude’s responsibility ends at **visibility**.
+
+Claude must never:
+
+*   decide action
+    
+*   suggest fixes
+    
+*   automate responses
+    
+
+All interpretation belongs to humans.
+
+Review Checklist for Claude Output
+----------------------------------
+
+Before accepting Claude-generated changes, verify:
+
+*   No agent behavior modification
+    
+*   No privacy boundary violations
+    
+*   No evaluative language
+    
+*   No feedback loops
+    
+*   No optimization logic
+    
+*   Phase 1 & 2 untouched
+    
+*   Purely additive changes
+    
+*   Observational semantics preserved
+    
+
+If any check fails → **reject**.
+
+One-Line Rule for Claude
+------------------------
+
+> **Claude helps humans notice change — not decide what to do about it.**
+
+End of claude.md
+----------------
+
+This file defines **how AI assistance is safely used** in Phase 3.
+
+It is intentionally strict.

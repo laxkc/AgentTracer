@@ -1,16 +1,22 @@
 """
-Agent Observability Platform - Core Data Models
+AgentTracer Platform - Core Data Models
 
-This module implements Phase-1 data models following strict privacy constraints:
-- NO raw prompts or LLM responses
-- NO chain-of-thought storage
-- NO PII
-- Safe metadata only
+This module implements data models for both Phase 1 and Phase 2:
 
-Models:
+Phase 1 (Execution Observability):
 - AgentRun: Represents a single agent execution
 - AgentStep: Ordered step within a run with latency tracking
 - AgentFailure: Semantic failure classification
+
+Phase 2 (Decision & Quality Observability - ADDITIVE ONLY):
+- AgentDecision: Structured decision points
+- AgentQualitySignal: Observable quality indicators
+
+Privacy constraints (both phases):
+- NO raw prompts or LLM responses
+- NO chain-of-thought storage
+- NO PII
+- Safe, structured metadata only
 """
 
 from datetime import datetime
@@ -20,9 +26,11 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -77,6 +85,13 @@ class AgentRunDB(Base):
     )
     failures = relationship(
         "AgentFailureDB", back_populates="run", cascade="all, delete-orphan"
+    )
+    # Phase 2: Optional decision and quality signal relationships
+    decisions = relationship(
+        "AgentDecisionDB", back_populates="run", cascade="all, delete-orphan"
+    )
+    quality_signals = relationship(
+        "AgentQualitySignalDB", back_populates="run", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
@@ -172,6 +187,114 @@ class AgentFailureDB(Base):
 
 
 # ============================================================================
+# Phase 2 SQLAlchemy ORM Models (ADDITIVE ONLY - NO PHASE 1 CHANGES)
+# ============================================================================
+
+
+class AgentDecisionDB(Base):
+    """
+    Database model for agent_decisions table (Phase 2).
+
+    Represents a structured decision point made by an agent.
+    This is ADDITIVE to Phase 1 - NO PHASE 1 TABLES MODIFIED.
+
+    Privacy guarantee: Only structured enums and numeric values stored.
+    """
+
+    __tablename__ = "agent_decisions"
+
+    decision_id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    run_id = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("agent_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    step_id = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("agent_steps.step_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # Decision metadata (all enum-based)
+    decision_type = Column(String(100), nullable=False, index=True)
+    selected = Column(String(200), nullable=False)
+    reason_code = Column(String(100), nullable=False, index=True)
+    confidence = Column(Float, nullable=True)
+
+    # Structured metadata only (validated for privacy)
+    decision_metadata = Column("metadata", JSON, nullable=False, default={})
+
+    recorded_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    run = relationship("AgentRunDB", back_populates="decisions")
+
+    __table_args__ = (
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)",
+            name="valid_confidence_range",
+        ),
+        CheckConstraint("LENGTH(decision_type) > 0", name="valid_decision_type"),
+        CheckConstraint("LENGTH(selected) > 0", name="valid_selected"),
+        CheckConstraint("LENGTH(reason_code) > 0", name="valid_reason_code"),
+    )
+
+
+class AgentQualitySignalDB(Base):
+    """
+    Database model for agent_quality_signals table (Phase 2).
+
+    Represents an atomic quality signal correlated with outcomes.
+    This is ADDITIVE to Phase 1 - NO PHASE 1 TABLES MODIFIED.
+
+    Privacy guarantee: Only structured enums, booleans, and numeric values stored.
+    """
+
+    __tablename__ = "agent_quality_signals"
+
+    signal_id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    run_id = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("agent_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    step_id = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("agent_steps.step_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # Signal metadata (all enum-based)
+    signal_type = Column(String(100), nullable=False, index=True)
+    signal_code = Column(String(100), nullable=False, index=True)
+    value = Column(Boolean, nullable=False)
+    weight = Column(Float, nullable=True)
+
+    # Structured metadata only (validated for privacy)
+    signal_metadata = Column("metadata", JSON, nullable=False, default={})
+
+    recorded_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    run = relationship("AgentRunDB", back_populates="quality_signals")
+
+    __table_args__ = (
+        CheckConstraint(
+            "weight IS NULL OR (weight >= 0.0 AND weight <= 1.0)",
+            name="valid_weight_range",
+        ),
+        CheckConstraint("LENGTH(signal_type) > 0", name="valid_signal_type"),
+        CheckConstraint("LENGTH(signal_code) > 0", name="valid_signal_code"),
+    )
+
+
+# ============================================================================
 # Pydantic Models (API Layer - Validation & Serialization)
 # ============================================================================
 
@@ -206,9 +329,10 @@ class AgentStepCreate(BaseModel):
         Forbidden: prompts, responses, PII, text content
         """
         # This is a basic check - in production, implement stricter validation
-        forbidden_keys = ["prompt", "response", "output", "input", "content", "text"]
+        forbidden_keys = {"prompt", "response", "output", "input", "content", "text", "message"}
         for key in v.keys():
-            if any(forbidden in key.lower() for forbidden in forbidden_keys):
+            # Use exact key matching, not substring matching
+            if key.lower() in forbidden_keys:
                 raise ValueError(
                     f"Metadata key '{key}' may contain sensitive data. "
                     f"Phase-1 only allows safe metadata (tool names, codes, counts)."
@@ -256,12 +380,202 @@ class AgentFailureCreate(BaseModel):
         return v
 
 
+# ============================================================================
+# Phase 2 Pydantic Models - MUST BE BEFORE AgentRunCreate
+# ============================================================================
+
+
+class AgentDecisionCreate(BaseModel):
+    """
+    Schema for creating an agent decision (Phase 2 ingest API).
+
+    Enforces strict validation:
+    - decision_type must be valid enum
+    - reason_code must be valid for the decision_type
+    - confidence must be 0.0-1.0 if provided
+    - metadata must be privacy-safe
+    """
+
+    decision_id: UUID = Field(default_factory=uuid4)
+    step_id: Optional[UUID] = Field(None, description="Optional step where decision was made")
+    decision_type: str = Field(..., min_length=1, max_length=100)
+    selected: str = Field(..., min_length=1, max_length=200, description="The option that was selected")
+    reason_code: str = Field(..., min_length=1, max_length=100, description="Structured reason code (enum)")
+    candidates: Optional[List[str]] = Field(None, description="Other options considered (stored in metadata)")
+    confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Decision confidence 0.0-1.0")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Structured metadata only")
+
+    @field_validator("decision_type")
+    @classmethod
+    def validate_decision_type_enum(cls, v: str) -> str:
+        """Validate decision_type is a valid enum value."""
+        from backend.enums import validate_decision_type
+
+        if not validate_decision_type(v):
+            from backend.enums import DecisionType
+            valid_types = [dt.value for dt in DecisionType]
+            raise ValueError(
+                f"Invalid decision_type: '{v}'. "
+                f"Must be one of: {valid_types}"
+            )
+        return v
+
+    @field_validator("reason_code")
+    @classmethod
+    def validate_reason_code_for_type(cls, v: str, info) -> str:
+        """Validate reason_code is valid for the decision_type."""
+        from backend.enums import validate_reason_code, get_valid_reason_codes
+
+        if "decision_type" in info.data:
+            decision_type = info.data["decision_type"]
+            if not validate_reason_code(decision_type, v):
+                valid_codes = get_valid_reason_codes(decision_type)
+                raise ValueError(
+                    f"Invalid reason_code '{v}' for decision_type '{decision_type}'. "
+                    f"Valid codes: {valid_codes}"
+                )
+        return v
+
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata_privacy(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate metadata contains no sensitive data.
+
+        Blocked keys: prompt, response, reasoning, thought, message, content, text, etc.
+        Max string length: 100 characters
+        Only primitive types allowed
+        """
+        BLOCKED_KEYS = {
+            "prompt", "response", "reasoning", "thought",
+            "message", "content", "text", "output", "input",
+            "chain_of_thought", "explanation", "rationale"
+        }
+
+        for key, value in v.items():
+            # Check blocked keys
+            if key.lower() in BLOCKED_KEYS:
+                raise ValueError(
+                    f"Metadata key '{key}' may contain sensitive data and is not allowed. "
+                    f"Phase 2 privacy constraint: no prompts, responses, or reasoning text."
+                )
+
+            # Check value types (primitives only)
+            if not isinstance(value, (str, int, float, bool, type(None))):
+                raise ValueError(
+                    f"Metadata value for '{key}' must be primitive type (str, int, float, bool, None). "
+                    f"Got: {type(value).__name__}"
+                )
+
+            # Check string lengths
+            if isinstance(value, str) and len(value) > 100:
+                raise ValueError(
+                    f"Metadata string '{key}' exceeds 100 characters. "
+                    f"Phase 2 privacy constraint: structured metadata only, no long text."
+                )
+
+        return v
+
+
+class AgentQualitySignalCreate(BaseModel):
+    """
+    Schema for creating a quality signal (Phase 2 ingest API).
+
+    Enforces strict validation:
+    - signal_type must be valid enum
+    - signal_code must be valid for the signal_type
+    - value is boolean (signal present/absent)
+    - weight must be 0.0-1.0 if provided
+    - metadata must be privacy-safe
+    """
+
+    signal_id: UUID = Field(default_factory=uuid4)
+    step_id: Optional[UUID] = Field(None, description="Optional step where signal was observed")
+    signal_type: str = Field(..., min_length=1, max_length=100)
+    signal_code: str = Field(..., min_length=1, max_length=100, description="Specific signal code")
+    value: bool = Field(..., description="Signal present (True) or absent (False)")
+    weight: Optional[float] = Field(None, ge=0.0, le=1.0, description="Signal weight for correlation 0.0-1.0")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Structured metadata only")
+
+    @field_validator("signal_type")
+    @classmethod
+    def validate_signal_type_enum(cls, v: str) -> str:
+        """Validate signal_type is a valid enum value."""
+        from backend.enums import validate_signal_type
+
+        if not validate_signal_type(v):
+            from backend.enums import SignalType
+            valid_types = [st.value for st in SignalType]
+            raise ValueError(
+                f"Invalid signal_type: '{v}'. "
+                f"Must be one of: {valid_types}"
+            )
+        return v
+
+    @field_validator("signal_code")
+    @classmethod
+    def validate_signal_code_for_type(cls, v: str, info) -> str:
+        """Validate signal_code is valid for the signal_type."""
+        from backend.enums import validate_signal_code, get_valid_signal_codes
+
+        if "signal_type" in info.data:
+            signal_type = info.data["signal_type"]
+            if not validate_signal_code(signal_type, v):
+                valid_codes = get_valid_signal_codes(signal_type)
+                raise ValueError(
+                    f"Invalid signal_code '{v}' for signal_type '{signal_type}'. "
+                    f"Valid codes: {valid_codes}"
+                )
+        return v
+
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata_privacy(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate metadata contains no sensitive data.
+
+        Blocked keys: prompt, response, reasoning, thought, message, content, text, etc.
+        Max string length: 100 characters
+        Only primitive types allowed
+        """
+        BLOCKED_KEYS = {
+            "prompt", "response", "reasoning", "thought",
+            "message", "content", "text", "output", "input",
+            "chain_of_thought", "explanation", "rationale"
+        }
+
+        for key, value in v.items():
+            # Check blocked keys
+            if key.lower() in BLOCKED_KEYS:
+                raise ValueError(
+                    f"Metadata key '{key}' may contain sensitive data and is not allowed. "
+                    f"Phase 2 privacy constraint: no prompts, responses, or reasoning text."
+                )
+
+            # Check value types (primitives only)
+            if not isinstance(value, (str, int, float, bool, type(None))):
+                raise ValueError(
+                    f"Metadata value for '{key}' must be primitive type (str, int, float, bool, None). "
+                    f"Got: {type(value).__name__}"
+                )
+
+            # Check string lengths
+            if isinstance(value, str) and len(value) > 100:
+                raise ValueError(
+                    f"Metadata string '{key}' exceeds 100 characters. "
+                    f"Phase 2 privacy constraint: structured metadata only, no long text."
+                )
+
+        return v
+
+
 class AgentRunCreate(BaseModel):
     """
     Schema for creating an agent run (ingest API).
 
-    Complete run with steps and optional failure.
-    Enforces Phase-1 privacy and structural constraints.
+    Complete run with steps and optional failure (Phase 1).
+    Phase 2 adds optional decisions and quality signals.
+    Enforces privacy and structural constraints.
     """
 
     run_id: UUID = Field(default_factory=uuid4)
@@ -274,6 +588,10 @@ class AgentRunCreate(BaseModel):
 
     steps: List[AgentStepCreate] = Field(default_factory=list)
     failure: Optional[AgentFailureCreate] = None
+
+    # Phase 2: Optional decision and quality signal tracking
+    decisions: Optional[List[AgentDecisionCreate]] = Field(default_factory=list)
+    quality_signals: Optional[List[AgentQualitySignalCreate]] = Field(default_factory=list)
 
     @field_validator("steps")
     @classmethod
@@ -372,5 +690,51 @@ class AgentRunResponse(BaseModel):
     steps: List[AgentStepResponse] = []
     failures: List[AgentFailureResponse] = []
 
+    # Phase 2: Optional decision and quality signal data
+    decisions: List["AgentDecisionResponse"] = []
+    quality_signals: List["AgentQualitySignalResponse"] = []
+
     class Config:
         from_attributes = True
+
+
+# ============================================================================
+# Phase 2 Pydantic Models (ADDITIVE ONLY - NO PHASE 1 CHANGES)
+# ============================================================================
+
+class AgentDecisionResponse(BaseModel):
+    """Schema for returning decision data (query API)"""
+
+    decision_id: UUID
+    run_id: UUID
+    step_id: Optional[UUID]
+    decision_type: str
+    selected: str
+    reason_code: str
+    confidence: Optional[float]
+    metadata: Dict[str, Any] = Field(validation_alias="decision_metadata", serialization_alias="metadata")
+    recorded_at: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class AgentQualitySignalResponse(BaseModel):
+    """Schema for returning quality signal data (query API)"""
+
+    signal_id: UUID
+    run_id: UUID
+    step_id: Optional[UUID]
+    signal_type: str
+    signal_code: str
+    value: bool
+    weight: Optional[float]
+    metadata: Dict[str, Any] = Field(validation_alias="signal_metadata", serialization_alias="metadata")
+    recorded_at: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True

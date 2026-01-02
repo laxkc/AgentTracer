@@ -1,5 +1,5 @@
 """
-Agent Observability Platform - Query API
+AgentTracer Platform - Query API
 
 This module implements the read-only query API for Phase-1.
 
@@ -27,8 +27,12 @@ from sqlalchemy import create_engine, desc, func, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.models import (
+    AgentDecisionDB,
+    AgentDecisionResponse,
     AgentFailureDB,
     AgentFailureResponse,
+    AgentQualitySignalDB,
+    AgentQualitySignalResponse,
     AgentRunDB,
     AgentRunResponse,
     AgentStepDB,
@@ -45,7 +49,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 app = FastAPI(
-    title="Agent Observability Platform - Query API",
+    title="AgentTracer Platform - Query API",
     description="Phase-1 read-only API for querying agent telemetry",
     version="0.1.0",
 )

@@ -1,4 +1,4 @@
--- Agent Observability Platform — Phase 1 Database Schema
+-- AgentTracer Platform — Phase 1 Database Schema
 --
 -- Design Principles:
 -- 1. Privacy-by-default: NO prompts, responses, or PII

@@ -1,6 +1,6 @@
 # API Sequence Diagrams
 
-This document provides detailed sequence diagrams for all API operations in the Agent Observability Platform.
+This document provides detailed sequence diagrams for all API operations in the AgentTracer Platform.
 
 ## Table of Contents
 - [Run Ingestion Sequence](#run-ingestion-sequence)

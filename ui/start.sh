@@ -1,10 +1,10 @@
 #!/bin/bash
-# Agent Observability Platform - UI Startup Script
+# AgentTracer Platform - UI Startup Script
 
 set -e
 
 echo "========================================="
-echo "Agent Observability Platform - UI"
+echo "AgentTracer Platform - UI"
 echo "========================================="
 echo ""
 

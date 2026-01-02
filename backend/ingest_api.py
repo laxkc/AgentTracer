@@ -1,5 +1,5 @@
 """
-Agent Observability Platform - Ingest API
+AgentTracer Platform - Ingest API
 
 This module implements the write-only ingest API for Phase-1.
 
@@ -25,7 +25,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.models import (
+    AgentDecisionDB,
     AgentFailureDB,
+    AgentQualitySignalDB,
     AgentRunCreate,
     AgentRunDB,
     AgentRunResponse,
@@ -42,7 +44,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 app = FastAPI(
-    title="Agent Observability Platform - Ingest API",
+    title="AgentTracer Platform - Ingest API",
     description="Phase-1 write-only API for agent telemetry ingestion",
     version="0.1.0",
 )
@@ -170,6 +172,10 @@ async def ingest_run(
         )
         db.add(db_run)
 
+        # Flush to ensure run_id exists before adding related records
+        # This is critical for Phase 2 foreign key constraints
+        db.flush()
+
         # Create step records
         for step in run.steps:
             db_step = AgentStepDB(
@@ -185,6 +191,10 @@ async def ingest_run(
             )
             db.add(db_step)
 
+        # Flush to ensure step_ids exist before adding decisions/failures that reference them
+        # This is critical for Phase 2 foreign key constraints on step_id
+        db.flush()
+
         # Create failure record if present
         if run.failure:
             db_failure = AgentFailureDB(
@@ -196,6 +206,41 @@ async def ingest_run(
             )
             db.add(db_failure)
 
+        # Phase 2: Create decision records if present (optional)
+        if run.decisions:
+            for decision in run.decisions:
+                # Merge candidates into metadata if provided
+                decision_metadata = decision.metadata.copy()
+                if decision.candidates:
+                    decision_metadata["candidates"] = decision.candidates
+
+                db_decision = AgentDecisionDB(
+                    decision_id=decision.decision_id,
+                    run_id=run.run_id,
+                    step_id=decision.step_id,
+                    decision_type=decision.decision_type,
+                    selected=decision.selected,
+                    reason_code=decision.reason_code,
+                    confidence=decision.confidence,
+                    decision_metadata=decision_metadata,
+                )
+                db.add(db_decision)
+
+        # Phase 2: Create quality signal records if present (optional)
+        if run.quality_signals:
+            for signal in run.quality_signals:
+                db_signal = AgentQualitySignalDB(
+                    signal_id=signal.signal_id,
+                    run_id=run.run_id,
+                    step_id=signal.step_id,
+                    signal_type=signal.signal_type,
+                    signal_code=signal.signal_code,
+                    value=signal.value,
+                    weight=signal.weight,
+                    signal_metadata=signal.metadata,
+                )
+                db.add(db_signal)
+
         # Commit transaction
         db.commit()
         db.refresh(db_run)
@@ -206,6 +251,8 @@ async def ingest_run(
         logger.info(
             f"Ingested run {run.run_id} for agent {run.agent_id} "
             f"with {len(run.steps)} steps (status: {run.status})"
+            + (f", {len(run.decisions or [])} decisions" if run.decisions else "")
+            + (f", {len(run.quality_signals or [])} signals" if run.quality_signals else "")
         )
 
         return AgentRunResponse.model_validate(db_run)

@@ -1,4 +1,4 @@
-# Agent Observability Platform - Dockerfile
+# AgentTracer Platform - Dockerfile
 # Multi-stage build for optimized production image
 
 FROM python:3.10-slim as base

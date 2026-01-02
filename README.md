@@ -1,20 +1,36 @@
-# AgentTracer - Phase 1
+# AgentTracer - Phase 1 & 2 Complete
 
 ## Overview
 
-This repository contains **Phase 1 of AgentTracer**, an agent observability platform. AgentTracer offers **structured, privacy-safe observability for AI agents** by capturing agent runs, ordered execution steps, and semantic failure details. **Phase 1 is limited to execution visibility and does not address** decision optimization or evaluation.
+This repository contains the **AgentTracer Platform** with both Phase 1 and Phase 2 complete. AgentTracer offers **structured, privacy-safe observability for AI agents** by capturing:
+
+**Phase 1: Execution Observability**
+- Agent runs, ordered execution steps, and semantic failure details
+- Step-level latency tracking and retry modeling
+
+**Phase 2: Decision & Quality Observability** ✨ NEW
+- Agent decision points with structured reasoning
+- Quality signals correlated with outcomes
+- Observational analytics (no behavior modification)
 
 ## What is this?
 
 **AgentTracer** is an observability platform for AI agents. It records:
 
-- each agent execution ("run")
-- the ordered sequence of steps within that run
-- step-level latency
-- retries as first-class events
-- semantic failure classifications
+**Phase 1 (Execution):**
+- Each agent execution ("run")
+- The ordered sequence of steps within that run
+- Step-level latency
+- Retries as first-class events
+- Semantic failure classifications
 
-It allows engineers to **reconstruct and inspect agent behavior in production environments.**
+**Phase 2 (Decisions & Quality):**
+- Agent decision points (tool selection, retry strategy, etc.)
+- Structured reason codes (enum-based, privacy-safe)
+- Quality signals (schema validation, tool success/failure, etc.)
+- Confidence scores for decisions
+
+It allows engineers to **reconstruct and inspect agent behavior in production environments**, and **understand why agents make specific choices**.
 
 ## What problem does it solve?
 
@@ -60,7 +76,7 @@ AgentTracer is **not** intended for:
 - reinforcement learning pipelines
 - evaluation benchmarks or grading frameworks
 
-These areas are **explicitly out of scope for Phase 1**.
+These areas are **explicitly out of scope** for AgentTracer. Phase 2 adds observational analytics but maintains strict boundaries against optimization and evaluation.
 
 ## Why does this exist?
 
@@ -84,15 +100,22 @@ AgentTracer is built around a **minimal, explicit execution model**:
 
 ```
 AgentRun
-├─ AgentStep (ordered)
-└─ AgentFailure (optional)
+├─ AgentStep (ordered, Phase 1)
+├─ AgentFailure (optional, Phase 1)
+├─ AgentDecision (optional, Phase 2)
+└─ AgentQualitySignal (optional, Phase 2)
 ```
 
+**Phase 1:**
 - **AgentRun** represents a single execution attempt
 - **AgentStep** represents one action taken by the agent
 - **AgentFailure** represents the semantic reason a run failed
 
-This model is **stable and intentionally constrained.**
+**Phase 2 (Additive):**
+- **AgentDecision** represents a decision point with structured reasoning
+- **AgentQualitySignal** represents an observable quality indicator
+
+This model is **stable, intentionally constrained, and backward compatible.**
 
 ## Main concepts
 
@@ -124,13 +147,38 @@ Each step records:
 
 Retries are represented as **separate steps rather than** overwritten attempts.
 
-### AgentFailure
+### AgentFailure (Phase 1)
 
 A structured, semantic failure description:
 
 - failure type (tool / model / retrieval / orchestration)
 - failure code (e.g., timeout, schema_invalid)
 - optional linkage to the step that caused the failure
+
+### AgentDecision (Phase 2)
+
+A structured record of a decision point where the agent selected between options:
+
+- decision type (tool_selection, retry_strategy, response_mode, etc.)
+- selected option
+- structured reason code (enum-based)
+- candidates considered
+- optional confidence score (0.0-1.0)
+
+Example: "Selected 'api' over 'cache' because 'fresh_data_required' (confidence: 0.85)"
+
+### AgentQualitySignal (Phase 2)
+
+An atomic, factual signal correlated with outcome quality:
+
+- signal type (schema_valid, tool_success, latency_threshold, etc.)
+- signal code (specific indicator)
+- boolean value (true/false)
+- optional weight (importance)
+
+Example: "Schema validation = full_match (true)" or "Tool execution = rate_limited (true)"
+
+**Important:** Phase 2 is observational only - no quality scores or correctness judgments.
 
 ## Minimal usage
 
@@ -330,35 +378,58 @@ Two complete examples are provided:
 
 Run examples:
 ```bash
+# Phase 1 examples
 PYTHONPATH=. python examples/customer_support_agent.py
 PYTHONPATH=. python examples/agent_with_failures.py
+
+# Phase 2 examples (includes decisions and quality signals)
+PYTHONPATH=. python examples/agent_with_phase2.py
 ```
 
 ## Stability and maturity
 
-**Phase 1 status: Stable and production-ready foundation.**
+**Phase 1 & 2 status: Complete and production-ready.**
 
-- Data schema is stable
-- SDK API is stable
+- Phase 1 data schema is stable (runs, steps, failures)
+- Phase 2 data schema is stable (decisions, quality signals)
+- SDK API is stable (backward compatible)
 - Ingest and query APIs are stable
+- UI components complete for both phases
 
-Future phases will add functionality without disrupting existing features. Breaking changes to Phase 1 primitives are **not anticipated.**
+Future phases will add functionality without disrupting existing features. Breaking changes to Phase 1 or Phase 2 primitives are **not anticipated.**
 
 ## Project scope summary
 
-Phase 1 provides:
+**What AgentTracer provides:**
 
-- execution visibility
-- latency attribution
-- failure understanding
+**Phase 1:**
+- Execution visibility
+- Latency attribution
+- Failure understanding
 
-It does **not** attempt to:
+**Phase 2:**
+- Decision observability
+- Quality signal capture
+- Structured reasoning codes
 
-- judge correctness
-- optimize decisions
-- change agent behavior
+**What it does NOT do:**
+- Judge correctness
+- Optimize decisions
+- Change agent behavior
+- Provide quality scores
+- Tune or evaluate agents
 
-These concerns are intentionally deferred.
+These boundaries are **strictly enforced**.
+
+## Phase 2 Completion
+
+Phase 2 has been successfully completed! See [PHASE2_COMPLETION_SUMMARY.md](./PHASE2_COMPLETION_SUMMARY.md) for:
+- Complete feature list
+- Implementation details
+- Testing results
+- Documentation links
+
+For Phase 2 usage guide, see [docs/phase2-observability.md](./docs/phase2-observability.md).
 
 ## Technology Stack
 

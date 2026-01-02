@@ -1,6 +1,6 @@
 # Deployment Documentation
 
-This document describes the Docker-based deployment architecture for the Agent Observability Platform.
+This document describes the Docker-based deployment architecture for the AgentTracer Platform.
 
 ## Table of Contents
 - [Docker Container Architecture](#docker-container-architecture)

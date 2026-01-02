@@ -1,6 +1,6 @@
 # Data Flow Documentation
 
-This document describes how telemetry data flows through the Agent Observability Platform, from capture in the agent to visualization in the UI.
+This document describes how telemetry data flows through the AgentTracer Platform, from capture in the agent to visualization in the UI.
 
 ## Table of Contents
 - [End-to-End Telemetry Flow](#end-to-end-telemetry-flow)

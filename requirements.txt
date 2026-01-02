@@ -1,4 +1,4 @@
-# Agent Observability Platform - Phase 1 Dependencies
+# AgentTracer Platform - Phase 1 Dependencies
 
 # Backend API
 fastapi==0.109.0

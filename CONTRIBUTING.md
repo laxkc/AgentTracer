@@ -442,4 +442,4 @@ By contributing to AgentTracer, you agree that your contributions will be licens
 
 ---
 
-Thank you for contributing to AgentTracer! Your efforts help make agent observability better for everyone.
+Thank you for contributing to AgentTracer! Your efforts help make AgentTracer better for everyone.

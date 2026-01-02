@@ -1,7 +1,7 @@
 {
   "name": "agent-observability-ui",
   "version": "0.1.0",
-  "description": "Agent Observability Platform - React UI",
+  "description": "AgentTracer Platform - React UI",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",

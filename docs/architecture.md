@@ -1,6 +1,6 @@
 # System Architecture
 
-This document describes the architecture of the Agent Observability Platform, showing how components interact and responsibilities are distributed.
+This document describes the architecture of the AgentTracer Platform, showing how components interact and responsibilities are distributed.
 
 ## Table of Contents
 - [Component Architecture](#component-architecture)
@@ -86,6 +86,8 @@ graph TB
         RunDetail[Run Detail]
         Timeline[Trace Timeline]
         Failures[Failure Breakdown]
+        Decisions[Decisions List<br/>Phase 2]
+        Signals[Quality Signals<br/>Phase 2]
     end
 
     subgraph API["API Layer (CQRS Pattern)"]
@@ -106,13 +108,17 @@ graph TB
             RunDB[AgentRunDB]
             StepDB[AgentStepDB]
             FailureDB[AgentFailureDB]
+            DecisionDB[AgentDecisionDB<br/>Phase 2]
+            SignalDB[AgentQualitySignalDB<br/>Phase 2]
         end
         subgraph Validation["Validation Models"]
             RunCreate[AgentRunCreate]
             RunResponse[AgentRunResponse]
+            DecisionCreate[AgentDecisionCreate<br/>Phase 2]
+            SignalCreate[AgentQualitySignalCreate<br/>Phase 2]
         end
         subgraph Storage["Storage"]
-            Tables[(agent_runs<br/>agent_steps<br/>agent_failures)]
+            Tables[(agent_runs<br/>agent_steps<br/>agent_failures<br/>agent_decisions Phase 2<br/>agent_quality_signals Phase 2)]
         end
     end
 
@@ -248,8 +254,10 @@ graph LR
 - Privacy enforcement (metadata validation)
 - Fail-safe operation (never crashes agent)
 - Async batched delivery to Ingest API
+- **Phase 2:** Decision tracking with structured reason codes
+- **Phase 2:** Quality signal capture with enum-based types
 
-**Example:**
+**Example (Phase 1 & 2):**
 ```python
 tracer = AgentTracer(
     agent_id="my_agent",
@@ -258,9 +266,27 @@ tracer = AgentTracer(
 )
 
 with tracer.start_run() as run:
-    with run.step("plan", "analyze_query"):
+    with run.step("plan", "analyze_query") as step:
         # Agent logic here
-        pass
+        selected_tool = "api"
+
+        # Phase 2: Record decision
+        run.record_decision(
+            decision_type="tool_selection",
+            selected=selected_tool,
+            reason_code="fresh_data_required",
+            candidates=["cache", "api"],
+            confidence=0.85,
+            step_id=step.step_id
+        )
+
+        # Phase 2: Record quality signal
+        run.record_quality_signal(
+            signal_type="tool_success",
+            signal_code="first_attempt",
+            value=True,
+            step_id=step.step_id
+        )
 ```
 
 ---
@@ -290,6 +316,8 @@ with tracer.start_run() as run:
 2. Privacy validators (no prompts/responses)
 3. Business rules (step sequencing, failure requirements)
 4. Database constraints (foreign keys, checks)
+5. **Phase 2:** Enum validation (decision types, reason codes, signal types)
+6. **Phase 2:** Privacy triggers (database-level metadata validation)
 
 ---
 

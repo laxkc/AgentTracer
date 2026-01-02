@@ -1,4 +1,4 @@
-# Agent Observability Platform - .dockerignore
+# AgentTracer Platform - .dockerignore
 # Exclude files from Docker build context for faster builds
 
 # ============================================================================

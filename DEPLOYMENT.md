@@ -1,6 +1,6 @@
-# Agent Observability Platform — Production Deployment Guide
+# AgentTracer Platform — Production Deployment Guide
 
-This guide covers deploying the Agent Observability Platform to production.
+This guide covers deploying the AgentTracer Platform to production.
 
 ## Table of Contents
 

@@ -1,4 +1,4 @@
-# Agent Observability Platform — Phase 1 Progress
+# AgentTracer Platform — Phase 1 Progress
 
 **Project Start Date:** 2026-01-01
 **Completion Date:** 2026-01-01

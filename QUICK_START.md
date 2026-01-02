@@ -1,4 +1,4 @@
-# Quick Start Guide — Agent Observability Platform
+# Quick Start Guide — AgentTracer Platform
 
 Get up and running in 5 minutes!
 

@@ -1,6 +1,6 @@
 # Failure Handling Documentation
 
-This document describes how the Agent Observability Platform captures, classifies, and displays agent failures using a semantic taxonomy.
+This document describes how the AgentTracer Platform captures, classifies, and displays agent failures using a semantic taxonomy.
 
 ## Table of Contents
 - [Failure Taxonomy](#failure-taxonomy)

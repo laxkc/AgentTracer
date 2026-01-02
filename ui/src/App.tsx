@@ -22,7 +22,7 @@ const App: React.FC = () => {
             <div className="flex items-center">
               <Activity className="w-8 h-8 text-blue-600 mr-2" />
               <h1 className="text-xl font-bold text-gray-900">
-                Agent Observability
+                AgentTracer
               </h1>
               <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
                 Phase 1
@@ -79,7 +79,7 @@ const App: React.FC = () => {
           <div className="flex items-center justify-between text-sm text-gray-600">
             <div>
               <p>
-                Agent Observability Platform — Phase 1 MVP
+                AgentTracer Platform — Phase 1 MVP
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Privacy-by-default • No prompts or responses stored

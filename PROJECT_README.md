@@ -1,10 +1,10 @@
-# Agent Observability Platform — Phase 1
+# AgentTracer Platform — Phase 1
 
 > **Make AI agent behavior visible, debuggable, and measurable** in production.
 
 ## Overview
 
-This is a **Phase-1 MVP** of an Agent Observability Platform that captures structured agent telemetry without storing sensitive data.
+This is a **Phase-1 MVP** of an AgentTracer Platform that captures structured agent telemetry without storing sensitive data.
 
 ### What This System Does
 

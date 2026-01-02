@@ -1,10 +1,22 @@
-# Agent Observability Platform - Documentation
+# AgentTracer Platform - Documentation
 
-Welcome to the technical documentation for the Agent Observability Platform (Phase 1).
+Welcome to the technical documentation for the AgentTracer Platform (Phase 1 & 2).
 
 ## Overview
 
-The Agent Observability Platform is a privacy-by-default telemetry system for AI agents. It captures structured execution traces, step timelines, and semantic failure classifications without storing sensitive data like prompts, responses, or PII.
+The AgentTracer Platform is a privacy-by-default telemetry system for AI agents. It captures:
+
+**Phase 1: Execution Observability**
+- Structured execution traces and step timelines
+- Semantic failure classifications
+- Latency tracking and performance metrics
+
+**Phase 2: Decision & Quality Observability**
+- Agent decision points with structured reasoning
+- Quality signals correlated with outcomes
+- Observational analytics (no correctness judgments)
+
+All telemetry is collected without storing sensitive data like prompts, responses, or PII.
 
 ## Documentation Structure
 
@@ -17,6 +29,7 @@ The Agent Observability Platform is a privacy-by-default telemetry system for AI
 ### Features & Capabilities
 
 - **[Failure Handling](./failure-handling.md)** - Failure taxonomy, classification, and retry modeling
+- **[Phase 2 Observability](./phase2-observability.md)** - Decision tracking and quality signals (Phase 2)
 - **[API Sequences](./api-sequences.md)** - Detailed interaction sequences for API operations
 
 ### Operations
@@ -29,6 +42,7 @@ The Agent Observability Platform is a privacy-by-default telemetry system for AI
 - Understanding the codebase: Start with [Architecture](./architecture.md)
 - Adding instrumentation: See [Data Flow](./data-flow.md)
 - Handling failures: Read [Failure Handling](./failure-handling.md)
+- **Phase 2 features**: See [Phase 2 Observability](./phase2-observability.md)
 - API integration: Check [API Sequences](./api-sequences.md)
 
 ### For DevOps
@@ -105,9 +119,9 @@ graph TB
 | SDK | Python + httpx | Client instrumentation |
 | Deployment | Docker Compose | Multi-container orchestration |
 
-## Phase 1 Scope
+## Implementation Status
 
-### Implemented Features
+### Phase 1: Execution Observability ✅ COMPLETE
 - ✅ Privacy-by-default telemetry capture
 - ✅ Ordered step timeline reconstruction
 - ✅ Semantic failure classification
@@ -118,13 +132,24 @@ graph TB
 - ✅ Docker deployment
 - ✅ Health checks and metrics
 
-### Future Enhancements (Phase 2+)
-- ⏭ Advanced search and filtering
+### Phase 2: Decision & Quality Observability ✅ COMPLETE
+- ✅ Agent decision tracking (tool selection, retry strategy, response mode, etc.)
+- ✅ Structured reason codes (enum-based, privacy-safe)
+- ✅ Confidence scoring for decisions
+- ✅ Quality signal capture (schema validation, tool success/failure, latency, etc.)
+- ✅ Multi-layer privacy enforcement (SDK, API, Database)
+- ✅ UI components for decisions and quality signals
+- ✅ Observational analytics (no quality judgments)
+- ✅ Backward compatibility with Phase 1
+
+### Future Enhancements (Phase 3+)
 - ⏭ Real-time updates (WebSocket)
 - ⏭ Alerting and notifications
-- ⏭ Multi-language SDK support
+- ⏭ Multi-language SDK support (TypeScript, Go, Java)
 - ⏭ Distributed tracing correlation
-- ⏭ Advanced analytics and insights
+- ⏭ Advanced analytics and pattern detection
+- ⏭ Decision tree visualization
+- ⏭ Quality signal correlation analysis
 
 ## Getting Started
 

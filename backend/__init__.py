@@ -1,5 +1,5 @@
 """
-Agent Observability Platform - Backend API
+AgentTracer Platform - Backend API
 
 This module implements the ingest and query APIs for Phase-1 observability.
 """

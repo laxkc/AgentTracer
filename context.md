@@ -1,379 +1,340 @@
-Agent Observability Platform — Phase 1 (AI Coding Context)
-----------------------------------------------------------
+Phase 3 — Behavioral Drift Detection & Operational Guardrails
+-------------------------------------------------------------
 
-1\. Purpose of This Document
-----------------------------
+Purpose of This Document
+------------------------
 
-This document provides **authoritative context** for AI coding assistants working on this repository.
+This document defines the **conceptual boundaries, assumptions, and invariants** for **Phase 3** of the Agent Observability Platform.
 
-Any AI system modifying or generating code **must follow this document** to:
+It exists to ensure that:
 
-*   stay within Phase-1 scope
+*   contributors understand _what Phase 3 is for_
     
-*   avoid architectural drift
+*   future changes do not violate core principles
     
-*   preserve security and privacy guarantees
+*   Phase 3 does not silently evolve into an agent control system
     
-*   align with production design intent
-    
-
-If there is a conflict between code comments and this document, **this document wins**.
-
-2\. What This System Is
------------------------
-
-This repository implements **Phase-1 of an Agent Observability Platform**.
-
-### High-level goal
-
-> Make AI agent behavior **visible, debuggable, and measurable** in production by capturing structured agent telemetry (runs, steps, failures).
-
-This is **NOT**:
-
-*   a logging system
-    
-*   a prompt store
-    
-*   an LLM evaluation platform
-    
-*   a replay or simulation engine
-    
-
-3\. Phase-1 Scope (Hard Constraints)
-------------------------------------
-
-### Phase-1 focuses on **visibility**, not intelligence.
-
-The system MUST:
-
-*   Capture agent runs
-    
-*   Capture ordered steps per run
-    
-*   Measure latency per step
-    
-*   Capture **semantic failure classification**
-    
-*   Provide query + UI for inspection
-    
-
-The system MUST NOT:
-
-*   Store raw prompts or LLM responses
-    
-*   Store chain-of-thought or hidden reasoning
-    
-*   Perform automatic quality evaluation
-    
-*   Re-execute agent logic
-    
-*   Modify agent behavior
-    
-
-If a feature touches these forbidden areas, **do not implement it**.
-
-4\. Mental Model (Critical for AI Coding)
------------------------------------------
-
-### Agent ≠ Microservice
-
-An agent is modeled as:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   Agent Run   ├─ Ordered Steps   │    ├─ plan   │    ├─ retrieve   │    ├─ tool (0..n attempts)   │    ├─ respond   └─ Optional Failure   `
-
-Observability here is **decision-centric**, not infra-centric.
-
-AI code should **always preserve**:
-
-*   step order (seq)
-    
-*   step boundaries
-    
-*   per-step timing
-    
-*   explicit failure attribution
-    
-
-5\. Core Domain Concepts (Do Not Rename Casually)
--------------------------------------------------
-
-These concepts are **stable API contracts**:
-
-### AgentRun
-
-*   One execution of an agent
-    
-*   Identified by run\_id
-    
-*   Has start/end time
-    
-*   Has status: success | failure | partial
-    
-
-### AgentStep
-
-*   One atomic step in the agent lifecycle
-    
-*   Ordered by seq
-    
-*   Has:
-    
-    *   step\_type (plan, retrieve, tool, respond, etc.)
-        
-    *   latency\_ms
-        
-    *   metadata (safe only)
-        
-
-### AgentFailure
-
-*   Semantic failure description
-    
-*   Always classified by:
-    
-    *   failure\_type
-        
-    *   failure\_code
-        
-*   Should reference a step\_id whenever possible
-    
-
-Do **not** collapse these into logs or generic events.
-
-6\. Failure Taxonomy (Mandatory)
---------------------------------
-
-Failures MUST be classified using this model:
-
-### failure\_type
-
-*   tool
-    
-*   model
-    
-*   retrieval
-    
-*   orchestration
-    
-
-### failure\_code (examples)
-
-*   timeout
-    
-*   schema\_invalid
-    
-*   empty\_retrieval
-    
-*   hallucination
-    
-*   uncaught\_exception
-    
-
-AI code **must not invent free-form failure types**.
-
-If unsure, default to:
-
-*   orchestration / uncaught\_exception
-    
-
-7\. Retry Modeling Rules (Very Important)
------------------------------------------
-
-### Rule
-
-> **Each retry is its own step span.**
-
-Incorrect:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   tool(call_api, retry_count=2)   `
-
-Correct:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   tool(call_api, attempt=1)  tool(call_api, attempt=2)   `
-
-This is required for:
-
-*   accurate latency attribution
-    
-*   future retry analysis
-    
-*   UI clarity
-    
-
-AI-generated code **must never overwrite step history**.
-
-8\. Privacy & Redaction Rules (Non-Negotiable)
-----------------------------------------------
-
-Phase-1 is **privacy-by-default**.
-
-### Allowed to store
-
-*   tool name
-    
-*   HTTP status codes
-    
-*   retry counts
-    
-*   latency
-    
-*   numeric metadata
-    
-*   enum/string labels
-    
-
-### Forbidden to store
-
-*   raw prompts
-    
-*   raw LLM responses
-    
-*   documents or retrieval content
-    
-*   user PII
-    
-*   chain-of-thought
-    
-
-AI code must **never** introduce fields that store raw text payloads.
-
-9\. Storage & API Constraints
------------------------------
-
-### Database
-
-*   PostgreSQL is used in Phase-1
-    
-*   Tables:
-    
-    *   agent\_runs
-        
-    *   agent\_steps
-        
-    *   agent\_failures
-        
-
-### API Design
-
-*   Ingest API is **write-only**
-    
-*   Query API is **read-only**
-    
-*   Idempotency via run\_id
-    
-
-AI code must:
-
-*   avoid schema drift
-    
-*   avoid cross-table coupling
-    
-*   keep JSONB usage minimal and intentional
-    
-
-10\. SDK Design Rules
----------------------
-
-The SDK must:
-
-*   be lightweight
-    
-*   be non-blocking
-    
-*   support async / batched delivery
-    
-*   fail safely (do not crash agent)
-    
-
-The SDK must NOT:
-
-*   inspect prompt contents
-    
-*   modify agent logic
-    
-*   enforce business rules
-    
-*   depend on agent frameworks internally
-    
-
-11\. Observability of This System
----------------------------------
-
-AI code should ensure:
-
-*   ingest errors are logged
-    
-*   dropped telemetry is observable
-    
-*   query performance is predictable
-    
-
-But do NOT:
-
-*   add complex metrics systems
-    
-*   add tracing to tracing (keep it simple)
-    
-
-12\. How AI Should Make Changes
--------------------------------
-
-When modifying or adding code, AI must:
-
-1.  State **what Phase-1 requirement this supports**
-    
-2.  Ensure **no forbidden data is introduced**
-    
-3.  Preserve existing semantics
-    
-4.  Prefer **explicitness over cleverness**
-    
-5.  Avoid speculative features
-    
-
-If unsure → **ask or leave a TODO comment** instead of guessing.
-
-13\. What Success Looks Like (Phase-1)
---------------------------------------
-
-This system is successful if an engineer can:
-
-*   Open the UI
-    
-*   Click a failed agent run
-    
-*   See:
-    
-    *   step order
-        
-    *   step latency
-        
-    *   tool retries
-        
-    *   failure classification
-        
-*   Understand _why_ the agent failed in under 60 seconds
-    
 
-Anything not supporting this is out of scope.
+If a proposed change contradicts this document, the change should be rejected or redesigned.
 
-14\. Future Phases (Awareness Only)
+System Context (Where Phase 3 Fits)
 -----------------------------------
 
-AI may see TODOs referencing:
+The Agent Observability Platform is deliberately layered:
 
-*   Phase-2 reasoning summaries
+PhaseResponsibilityPhase 1Execution visibilityPhase 2Decision & quality visibilityPhase 3**Behavioral stability & drift visibility**
+
+Phase 3 **does not introduce new telemetry**.It **derives meaning from existing Phase 2 data**.
+
+Phase 3 is **purely analytical and operational**, not behavioral.
+
+Core Question Phase 3 Answers
+-----------------------------
+
+> **“Has the agent’s behavior changed in a way that humans should pay attention to?”**
+
+Phase 3 does **not** answer:
+
+*   Is the agent correct?
     
-*   Phase-2 version diffing
+*   Is the agent good?
     
-*   Phase-2 replay
+*   Should the agent be fixed?
+    
+*   What should the agent do next?
     
 
-These are **NOT** to be implemented in Phase-1.
+Those remain **human decisions**.
 
-15\. Final Instruction to AI Systems
-------------------------------------
+Fundamental Assumptions
+-----------------------
 
-> **Do not optimize prematurely.Do not expand scope.Do not store sensitive data.Do not guess agent intent.**
+Phase 3 is built on the following assumptions:
 
-Phase-1 exists to **make behavior visible**, not to make agents smarter.
+1.  **Agents do not fail loudly**
+    
+    *   Most agent regressions are behavioral, not infrastructural
+        
+    *   Execution success does not imply acceptable behavior
+        
+2.  **Single runs are meaningless**
+    
+    *   Only distributions over time reveal problems
+        
+    *   Phase 3 ignores individual events entirely
+        
+3.  **Change matters more than absolute values**
+    
+    *   A retry rate of 20% may be fine
+        
+    *   A jump from 5% → 20% is significant
+        
+4.  **Humans remain accountable**
+    
+    *   Phase 3 never takes action on agents
+        
+    *   It only informs humans when attention is warranted
+        
+
+Non-Negotiable Invariants
+-------------------------
+
+The following rules must **never be violated**.
+
+### Observational Only
+
+Phase 3 must:
+
+*   ❌ Never modify agent behavior
+    
+*   ❌ Never block agent execution
+    
+*   ❌ Never auto-tune prompts or logic
+    
+*   ❌ Never enforce policies
+    
+
+Phase 3 may:
+
+*   ✅ Compute statistics
+    
+*   ✅ Detect distribution changes
+    
+*   ✅ Emit alerts
+    
+*   ✅ Visualize trends
+    
+
+### Privacy Preservation
+
+Phase 3 must **not introduce new data collection**.
+
+It must:
+
+*   ❌ Never access prompts
+    
+*   ❌ Never access responses
+    
+*   ❌ Never infer reasoning
+    
+*   ❌ Never inspect user content
+    
+
+All inputs are:
+
+*   Aggregated
+    
+*   Structured
+    
+*   Privacy-safe
+    
+
+### Additive Architecture
+
+Phase 3 must:
+
+*   ❌ Never modify Phase 1 tables
+    
+*   ❌ Never modify Phase 2 tables
+    
+*   ❌ Never alter ingest semantics
+    
+
+It may:
+
+*   ✅ Add new derived tables
+    
+*   ✅ Add read-only queries
+    
+*   ✅ Add analysis layers
+    
+
+Mental Model: How Phase 3 Works
+-------------------------------
+
+Phase 3 introduces **behavioral baselines**.
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   Stable historical behavior          ↓  Baseline snapshot          ↓  Live observed behavior          ↓  Distribution comparison          ↓  Drift detected (or not)   `
+
+There is no feedback loop.
+
+Phase 3 is a **dead-end observer**.
+
+What “Drift” Means (Precisely)
+------------------------------
+
+Drift means:
+
+> A statistically significant change in a behavioral distribution relative to a baseline.
+
+Drift does **not** mean:
+
+*   Failure
+    
+*   Bug
+    
+*   Regression
+    
+*   Incorrectness
+    
+
+It only means:
+
+*   “This behavior is different than before”
+    
+
+Interpretation is external.
+
+Scope of Drift Detection
+------------------------
+
+Phase 3 may detect drift in:
+
+*   Decision distributions(e.g., tool usage, retry strategy selection)
+    
+*   Quality signal rates(e.g., empty retrievals, schema failures)
+    
+*   Behavioral latency patterns(not infrastructure latency)
+    
+
+Phase 3 must **not**:
+
+*   Rank agents
+    
+*   Score agents
+    
+*   Aggregate into a single “health” number
+    
+
+Alerts: Philosophy & Constraints
+--------------------------------
+
+Alerts are:
+
+*   Informational
+    
+*   Non-blocking
+    
+*   Non-judgmental
+    
+
+Alerts must:
+
+*   Describe _what changed_
+    
+*   Reference the baseline used
+    
+*   Avoid prescribing fixes
+    
+
+Alerts must **never**:
+
+*   Trigger automatic actions
+    
+*   Suggest solutions
+    
+*   Imply blame
+    
+
+Human-in-the-Loop Boundary
+--------------------------
+
+Phase 3 ends where human reasoning begins.
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   Phase 3 detects drift          ↓  Human investigates          ↓  Human decides whether to act   `
+
+Any proposal that crosses this boundary is **out of scope**.
+
+Failure Modes Phase 3 Is Designed For
+-------------------------------------
+
+Phase 3 specifically targets:
+
+*   Silent behavioral regressions
+    
+*   Gradual degradation after deployments
+    
+*   Cost-inefficient success paths
+    
+*   Over-retrying or under-retrying agents
+    
+*   Unexpected changes in decision patterns
+    
+
+It is **not designed** to catch:
+
+*   Syntax errors
+    
+*   Infrastructure outages
+    
+*   Prompt hallucinations in single runs
+    
+
+What Phase 3 Intentionally Ignores
+----------------------------------
+
+Phase 3 explicitly ignores:
+
+*   Individual agent runs
+    
+*   User-level satisfaction
+    
+*   Prompt text
+    
+*   Model internals
+    
+*   LLM reasoning traces
+    
+
+This is intentional and non-negotiable.
+
+Design Philosophy Summary
+-------------------------
+
+Phase 3 follows three principles:
+
+1.  **Stability over optimization**
+    
+2.  **Visibility over control**
+    
+3.  **Change detection over judgment**
+    
+
+If Phase 3 ever:
+
+*   tells the agent what to do
+    
+*   grades agent intelligence
+    
+*   modifies execution
+    
+
+then it has failed its purpose.
+
+One-Sentence Internal Definition
+--------------------------------
+
+> **Phase 3 provides early visibility into agent behavioral change, without influencing agent behavior or human decision-making.**
+
+How to Use This Document
+------------------------
+
+Before implementing or reviewing Phase 3 changes, ask:
+
+1.  Does this introduce new data collection?
+    
+2.  Does this influence agent behavior?
+    
+3.  Does this prescribe actions?
+    
+4.  Does this reduce human accountability?
+    
+
+If the answer to **any** is “yes”, the change is invalid.
+
+End of Context
+--------------
+
+This document defines the **hard boundary** of Phase 3.
+
+Everything inside this boundary is acceptable.Everything outside it is not Phase 3.

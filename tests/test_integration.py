@@ -1,5 +1,5 @@
 """
-Integration Tests for Agent Observability Platform
+Integration Tests for AgentTracer Platform
 
 These tests verify end-to-end functionality of the entire system:
 - SDK telemetry capture

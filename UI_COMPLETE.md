@@ -2,7 +2,7 @@
 
 ## Complete React Application Built!
 
-The Agent Observability Platform now has a **fully functional React UI** with TypeScript, Tailwind CSS, and modern best practices.
+The AgentTracer Platform now has a **fully functional React UI** with TypeScript, Tailwind CSS, and modern best practices.
 
 ---
 
@@ -355,7 +355,7 @@ server {
 ### Dashboard
 ```
 ┌─────────────────────────────────────────┐
-│ [≡] Agent Observability     [Dashboard] │
+│ [≡] AgentTracer     [Dashboard] │
 ├─────────────────────────────────────────┤
 │                                          │
 │  Total Runs    Success Rate   Failures  │
@@ -490,4 +490,4 @@ npm run dev
 
 ---
 
-The Agent Observability Platform now has a beautiful, functional UI ready for production use! 🎉
+The AgentTracer Platform now has a beautiful, functional UI ready for production use! 🎉

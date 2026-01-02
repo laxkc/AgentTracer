@@ -19,9 +19,13 @@ import {
   AlertCircle,
   Activity,
   Layers,
+  GitBranch,
+  Zap,
 } from 'lucide-react';
 import TraceTimeline from '../components/TraceTimeline';
 import FailureBreakdown from '../components/FailureBreakdown';
+import DecisionsList from '../components/DecisionsList';
+import QualitySignalsList from '../components/QualitySignalsList';
 
 const QUERY_API_URL = 'http://localhost:8001';
 
@@ -36,6 +40,9 @@ interface AgentRun {
   created_at: string;
   steps: any[];
   failures: any[];
+  // Phase 2: Optional decision and quality signal data
+  decisions?: any[];
+  quality_signals?: any[];
 }
 
 const RunDetail: React.FC = () => {
@@ -154,7 +161,7 @@ const RunDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">{run.agent_id}</h1>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(
@@ -163,6 +170,12 @@ const RunDetail: React.FC = () => {
               >
                 {run.status}
               </span>
+              {((run.decisions && run.decisions.length > 0) ||
+                (run.quality_signals && run.quality_signals.length > 0)) && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 border border-purple-300 rounded text-xs font-semibold">
+                  Phase 2 Data
+                </span>
+              )}
             </div>
             <p className="text-sm text-gray-600">Version {run.agent_version}</p>
           </div>
@@ -170,7 +183,7 @@ const RunDetail: React.FC = () => {
         </div>
 
         {/* Metadata Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
             <Activity className="w-5 h-5 text-blue-500 mt-0.5" />
             <div>
@@ -206,6 +219,28 @@ const RunDetail: React.FC = () => {
               <p className="text-sm font-semibold text-gray-900">{run.steps.length}</p>
             </div>
           </div>
+
+          {/* Phase 2: Decisions */}
+          {run.decisions && run.decisions.length > 0 && (
+            <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+              <GitBranch className="w-5 h-5 text-purple-600 mt-0.5" />
+              <div>
+                <p className="text-xs text-purple-700 font-medium">Decisions</p>
+                <p className="text-sm font-semibold text-purple-900">{run.decisions.length}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Phase 2: Quality Signals */}
+          {run.quality_signals && run.quality_signals.length > 0 && (
+            <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+              <Zap className="w-5 h-5 text-purple-600 mt-0.5" />
+              <div>
+                <p className="text-xs text-purple-700 font-medium">Quality Signals</p>
+                <p className="text-sm font-semibold text-purple-900">{run.quality_signals.length}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Run ID */}
@@ -227,6 +262,20 @@ const RunDetail: React.FC = () => {
             steps={run.steps}
             runStatus={run.status}
           />
+        </div>
+      )}
+
+      {/* Phase 2: Agent Decisions */}
+      {run.decisions && run.decisions.length > 0 && (
+        <div className="mb-6">
+          <DecisionsList decisions={run.decisions} />
+        </div>
+      )}
+
+      {/* Phase 2: Quality Signals */}
+      {run.quality_signals && run.quality_signals.length > 0 && (
+        <div className="mb-6">
+          <QualitySignalsList signals={run.quality_signals} />
         </div>
       )}
 

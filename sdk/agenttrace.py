@@ -1,16 +1,17 @@
 """
-Agent Observability Platform - Python SDK
+AgentTracer Platform - Python SDK
 
 This module provides the client-side SDK for capturing agent telemetry.
 
-Design Principles (Phase-1):
+Design Principles (Phase 1 & 2):
 1. Lightweight and non-blocking
 2. Privacy-by-default (no prompts, responses, or PII)
 3. Fail-safe (never crash the agent)
 4. Context manager support for automatic timing
 5. Async batched delivery
+6. Phase 2: Optional decision and quality signal tracking
 
-Usage Example:
+Usage Example (Phase 1):
     ```python
     from sdk.agenttrace import AgentTracer
 
@@ -45,6 +46,34 @@ Usage Example:
                             failure_code="timeout",
                             message=f"API call failed after 3 attempts"
                         )
+    ```
+
+Usage Example (Phase 2 - Optional):
+    ```python
+    with tracer.start_run() as run:
+        with run.step("plan", "choose_tool") as step:
+            # Your decision logic
+            selected_tool = "call_api"
+
+            # Record decision (optional, Phase 2)
+            run.record_decision(
+                decision_type="tool_selection",
+                selected=selected_tool,
+                reason_code="fresh_data_required",
+                confidence=0.85,
+                step_id=step.step_id
+            )
+
+        with run.step("retrieve", "search_docs") as step:
+            results = search(query)
+
+            # Record quality signal (optional, Phase 2)
+            run.record_quality_signal(
+                signal_type="empty_retrieval" if len(results) == 0 else "retrieval_success",
+                signal_code="no_results" if len(results) == 0 else "results_found",
+                value=True,
+                step_id=step.step_id
+            )
     ```
 """
 
@@ -105,10 +134,10 @@ class StepContext:
         Raises:
             ValueError: If metadata contains forbidden keys
         """
-        # Basic validation for forbidden patterns
-        forbidden_keys = ["prompt", "response", "output", "input", "content", "text"]
+        # Basic validation for forbidden patterns (exact matches only for Phase 1)
+        forbidden_keys = {"prompt", "response", "output", "input", "content", "text", "message"}
         for key in metadata.keys():
-            if any(forbidden in key.lower() for forbidden in forbidden_keys):
+            if key.lower() in forbidden_keys:
                 logger.warning(
                     f"Skipping metadata key '{key}' - may contain sensitive data"
                 )
@@ -157,6 +186,8 @@ class RunContext:
     - Run start/end timestamps
     - Ordered step sequence
     - Failure classification
+    - Phase 2: Decision points (optional)
+    - Phase 2: Quality signals (optional)
     """
 
     def __init__(
@@ -179,6 +210,10 @@ class RunContext:
         self._steps: List[Dict[str, Any]] = []
         self._failure: Optional[Dict[str, Any]] = None
         self._step_seq = 0
+
+        # Phase 2: Optional decision and signal tracking
+        self._decisions: List[Dict[str, Any]] = []
+        self._quality_signals: List[Dict[str, Any]] = []
 
     def step(self, step_type: StepType, name: str) -> StepContext:
         """
@@ -266,6 +301,202 @@ class RunContext:
         }
         self.status = "failure"
 
+    def record_decision(
+        self,
+        decision_type: str,
+        selected: str,
+        reason_code: str,
+        candidates: Optional[List[str]] = None,
+        confidence: Optional[float] = None,
+        step_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Record a structured decision point (Phase 2, optional).
+
+        This is OPTIONAL and does not affect Phase 1 behavior.
+        Decisions are structured, enum-based metadata about why the agent
+        chose a particular path.
+
+        Privacy guarantee: Only structured enums and numeric values are stored.
+        NO prompts, responses, or reasoning text allowed.
+
+        Args:
+            decision_type: Type of decision (must be valid enum)
+            selected: The option that was selected
+            reason_code: Structured reason code (must be valid enum for decision_type)
+            candidates: Optional list of other options considered
+            confidence: Optional confidence value (0.0-1.0)
+            step_id: Optional step where decision was made
+            metadata: Optional structured metadata (privacy-validated)
+
+        Example:
+            ```python
+            run.record_decision(
+                decision_type="tool_selection",
+                selected="call_api",
+                reason_code="fresh_data_required",
+                candidates=["call_api", "use_cache"],
+                confidence=0.85,
+                step_id=step.step_id
+            )
+            ```
+        """
+        try:
+            # Privacy validation for metadata
+            if metadata is None:
+                metadata = {}
+
+            validated_metadata = self._validate_phase2_metadata(metadata)
+
+            # Validate confidence range
+            if confidence is not None:
+                if not (0.0 <= confidence <= 1.0):
+                    logger.warning(
+                        f"Confidence {confidence} out of range [0.0, 1.0]. Ignoring decision."
+                    )
+                    return
+
+            decision = {
+                "decision_id": str(uuid4()),
+                "step_id": str(step_id) if step_id else None,
+                "decision_type": decision_type,
+                "selected": selected,
+                "reason_code": reason_code,
+                "candidates": candidates,  # Separate field, not in metadata
+                "confidence": confidence,
+                "metadata": validated_metadata,
+            }
+
+            self._decisions.append(decision)
+            logger.debug(f"Recorded decision: {decision_type} -> {selected} ({reason_code})")
+
+        except Exception as e:
+            # Fail-safe: Never crash the agent due to telemetry issues
+            logger.error(f"Failed to record decision: {e}", exc_info=True)
+
+    def record_quality_signal(
+        self,
+        signal_type: str,
+        signal_code: str,
+        value: bool,
+        weight: Optional[float] = None,
+        step_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Record a quality signal (Phase 2, optional).
+
+        This is OPTIONAL and does not affect Phase 1 behavior.
+        Quality signals are atomic, factual indicators correlated with
+        outcome quality. Signals are non-judgmental observations.
+
+        Privacy guarantee: Only structured enums and numeric values are stored.
+        NO prompts, responses, or reasoning text allowed.
+
+        Args:
+            signal_type: Type of signal (must be valid enum)
+            signal_code: Specific signal code (must be valid enum for signal_type)
+            value: Signal present (True) or absent (False)
+            weight: Optional signal weight for correlation (0.0-1.0)
+            step_id: Optional step where signal was observed
+            metadata: Optional structured metadata (privacy-validated)
+
+        Example:
+            ```python
+            run.record_quality_signal(
+                signal_type="schema_valid",
+                signal_code="full_match",
+                value=True,
+                weight=0.9,
+                step_id=step.step_id
+            )
+            ```
+        """
+        try:
+            # Privacy validation for metadata
+            if metadata is None:
+                metadata = {}
+
+            validated_metadata = self._validate_phase2_metadata(metadata)
+
+            # Validate weight range
+            if weight is not None:
+                if not (0.0 <= weight <= 1.0):
+                    logger.warning(
+                        f"Weight {weight} out of range [0.0, 1.0]. Ignoring signal."
+                    )
+                    return
+
+            signal = {
+                "signal_id": str(uuid4()),
+                "step_id": str(step_id) if step_id else None,
+                "signal_type": signal_type,
+                "signal_code": signal_code,
+                "value": value,
+                "weight": weight,
+                "metadata": validated_metadata,
+            }
+
+            self._quality_signals.append(signal)
+            logger.debug(f"Recorded quality signal: {signal_type} -> {signal_code} = {value}")
+
+        except Exception as e:
+            # Fail-safe: Never crash the agent due to telemetry issues
+            logger.error(f"Failed to record quality signal: {e}", exc_info=True)
+
+    def _validate_phase2_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate Phase 2 metadata for privacy violations.
+
+        Phase 2 privacy constraints:
+        - Blocked keys: prompt, response, reasoning, thought, message, content, text, etc.
+        - Max string length: 100 characters
+        - Only primitive types allowed (str, int, float, bool, None)
+
+        Args:
+            metadata: Metadata to validate
+
+        Returns:
+            Validated metadata (sanitized)
+
+        Raises:
+            ValueError: If privacy violation detected
+        """
+        BLOCKED_KEYS = {
+            "prompt", "response", "reasoning", "thought",
+            "message", "content", "text", "output", "input",
+            "chain_of_thought", "explanation", "rationale"
+        }
+
+        validated = {}
+
+        for key, value in metadata.items():
+            # Check blocked keys
+            if key.lower() in BLOCKED_KEYS:
+                logger.warning(
+                    f"Metadata key '{key}' is blocked for privacy. Skipping."
+                )
+                continue
+
+            # Check value types (primitives only)
+            if not isinstance(value, (str, int, float, bool, type(None))):
+                logger.warning(
+                    f"Metadata value for '{key}' must be primitive type. Skipping."
+                )
+                continue
+
+            # Check string lengths
+            if isinstance(value, str) and len(value) > 100:
+                logger.warning(
+                    f"Metadata string '{key}' exceeds 100 characters. Truncating."
+                )
+                value = value[:100]
+
+            validated[key] = value
+
+        return validated
+
     def __enter__(self) -> "RunContext":
         """Start the agent run"""
         self.started_at = datetime.now(timezone.utc)
@@ -300,6 +531,12 @@ class RunContext:
             "steps": self._steps,
             "failure": self._failure,
         }
+
+        # Phase 2: Include decisions and quality signals if present (optional)
+        if self._decisions:
+            payload["decisions"] = self._decisions
+        if self._quality_signals:
+            payload["quality_signals"] = self._quality_signals
 
         # Send telemetry (async, non-blocking)
         try:
@@ -391,6 +628,13 @@ class AgentTracer:
             logger.info(f"Telemetry sent successfully for run {payload['run_id']}")
         except httpx.HTTPError as e:
             logger.error(f"Failed to send telemetry: {e}")
+            # Log validation errors (422) for debugging
+            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 422:
+                try:
+                    error_detail = e.response.json()
+                    logger.error(f"Validation error details: {error_detail}")
+                except Exception:
+                    logger.error(f"Response body: {e.response.text}")
             raise
 
     def flush(self) -> None:

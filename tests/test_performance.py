@@ -1,5 +1,5 @@
 """
-Performance Tests for Agent Observability Platform
+Performance Tests for AgentTracer Platform
 
 Tests performance characteristics against Phase-1 requirements:
 - Ingest API p99 latency < 200ms
