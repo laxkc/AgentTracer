@@ -1,17 +1,23 @@
-# AgentTracer - Phase 1 & 2 Complete
+# AgentTracer - Phase 1, 2 & 3 Complete
 
 ## Overview
 
-This repository contains the **AgentTracer Platform** with both Phase 1 and Phase 2 complete. AgentTracer offers **structured, privacy-safe observability for AI agents** by capturing:
+This repository contains the **AgentTracer Platform** with Phases 1, 2, and 3 complete. AgentTracer offers **structured, privacy-safe observability for AI agents** by capturing:
 
 **Phase 1: Execution Observability**
 - Agent runs, ordered execution steps, and semantic failure details
 - Step-level latency tracking and retry modeling
 
-**Phase 2: Decision & Quality Observability** ✨ NEW
+**Phase 2: Decision & Quality Observability**
 - Agent decision points with structured reasoning
 - Quality signals correlated with outcomes
 - Observational analytics (no behavior modification)
+
+**Phase 3: Behavioral Drift Detection** ✨ NEW
+- Statistical baseline creation from historical behavior
+- Drift detection via Chi-square tests and statistical comparison
+- Informational alerts when behavior changes significantly
+- Purely observational (drift ≠ bad, just describes change)
 
 ## What is this?
 
@@ -30,7 +36,13 @@ This repository contains the **AgentTracer Platform** with both Phase 1 and Phas
 - Quality signals (schema validation, tool success/failure, etc.)
 - Confidence scores for decisions
 
-It allows engineers to **reconstruct and inspect agent behavior in production environments**, and **understand why agents make specific choices**.
+**Phase 3 (Behavioral Drift):**
+- Behavioral baselines (statistical snapshots of expected behavior)
+- Drift detection (Chi-square tests, percent thresholds)
+- Informational alerts (neutral language, no prescriptive actions)
+- Drift timeline visualization
+
+It allows engineers to **reconstruct and inspect agent behavior in production environments**, **understand why agents make specific choices**, and **detect when behavior changes significantly over time**.
 
 ## What problem does it solve?
 
@@ -104,6 +116,11 @@ AgentRun
 ├─ AgentFailure (optional, Phase 1)
 ├─ AgentDecision (optional, Phase 2)
 └─ AgentQualitySignal (optional, Phase 2)
+     ↓
+Phase 3 (Derived Analytics)
+├─ BehaviorProfile (statistical snapshot)
+├─ BehaviorBaseline (immutable baseline)
+└─ BehaviorDrift (detected changes)
 ```
 
 **Phase 1:**
@@ -114,6 +131,11 @@ AgentRun
 **Phase 2 (Additive):**
 - **AgentDecision** represents a decision point with structured reasoning
 - **AgentQualitySignal** represents an observable quality indicator
+
+**Phase 3 (Derived Analytics):**
+- **BehaviorProfile** aggregates Phase 2 data into statistical snapshot
+- **BehaviorBaseline** represents immutable expected behavior
+- **BehaviorDrift** records statistically significant behavioral changes
 
 This model is **stable, intentionally constrained, and backward compatible.**
 
@@ -179,6 +201,40 @@ An atomic, factual signal correlated with outcome quality:
 Example: "Schema validation = full_match (true)" or "Tool execution = rate_limited (true)"
 
 **Important:** Phase 2 is observational only - no quality scores or correctness judgments.
+
+### BehaviorProfile (Phase 3)
+
+A statistical snapshot of agent behavior over a time window, aggregated from Phase 2 data:
+
+- decision distributions (e.g., tool_selection: {api: 0.65, cache: 0.30})
+- signal distributions (e.g., schema_valid: {full_match: 0.92, partial_match: 0.06})
+- latency statistics (mean, p50, p95, p99)
+- sample size (number of runs aggregated)
+
+Profiles are used to create baselines.
+
+### BehaviorBaseline (Phase 3)
+
+An immutable snapshot of expected agent behavior:
+
+- baseline type (version-based, time-window, or manual)
+- references a behavior profile
+- optional human approval
+- only one active baseline per (agent, version, environment)
+
+Baselines cannot be modified after creation - ensures auditability and prevents silent baseline shifts.
+
+### BehaviorDrift (Phase 3)
+
+A record of statistically significant behavioral change:
+
+- drift type (decision, signal, or latency)
+- metric (specific dimension that changed)
+- baseline vs observed values
+- statistical significance (p-value)
+- severity (low/medium/high based on magnitude)
+
+**Critical:** Drift is **descriptive, not evaluative**. Drift means "behavior changed" - NOT "agent broke" or "quality degraded". Human interpretation required.
 
 ## Minimal usage
 
@@ -365,6 +421,8 @@ Comprehensive documentation available in [docs/](./docs/):
 - [Architecture](./docs/architecture.md) - System components and design
 - [Data Flow](./docs/data-flow.md) - How telemetry flows through the system
 - [Failure Handling](./docs/failure-handling.md) - Failure taxonomy and classification
+- [Phase 2 Observability](./docs/phase2-observability.md) - Decision tracking and quality signals
+- [Phase 3 Drift Detection](./docs/phase3-drift-detection.md) - Behavioral baselines and drift detection
 - [Deployment](./docs/deployment.md) - Docker architecture and deployment
 - [API Sequences](./docs/api-sequences.md) - Detailed API interactions
 - [Component Responsibilities](./docs/component-responsibility.md) - Separation of concerns
@@ -388,15 +446,17 @@ PYTHONPATH=. python examples/agent_with_phase2.py
 
 ## Stability and maturity
 
-**Phase 1 & 2 status: Complete and production-ready.**
+**Phase 1, 2 & 3 status: Complete and production-ready.**
 
 - Phase 1 data schema is stable (runs, steps, failures)
 - Phase 2 data schema is stable (decisions, quality signals)
+- Phase 3 data schema is stable (profiles, baselines, drift)
 - SDK API is stable (backward compatible)
 - Ingest and query APIs are stable
-- UI components complete for both phases
+- Phase 3 query API complete (/v1/phase3/*)
+- Drift detection engine operational
 
-Future phases will add functionality without disrupting existing features. Breaking changes to Phase 1 or Phase 2 primitives are **not anticipated.**
+All phases are **additive** - no modifications to previous phases. Breaking changes to Phase 1, 2, or 3 primitives are **not anticipated.**
 
 ## Project scope summary
 
@@ -412,14 +472,21 @@ Future phases will add functionality without disrupting existing features. Break
 - Quality signal capture
 - Structured reasoning codes
 
+**Phase 3:**
+- Behavioral baseline creation
+- Statistical drift detection
+- Informational alerts
+- Drift timeline visualization
+
 **What it does NOT do:**
-- Judge correctness
+- Judge correctness or quality
 - Optimize decisions
 - Change agent behavior
-- Provide quality scores
+- Provide health scores or rankings
 - Tune or evaluate agents
+- Prescribe actions (alerts are informational only)
 
-These boundaries are **strictly enforced**.
+These boundaries are **strictly enforced** across all phases.
 
 ## Phase 2 Completion
 
@@ -431,10 +498,36 @@ Phase 2 has been successfully completed! See [PHASE2_COMPLETION_SUMMARY.md](./PH
 
 For Phase 2 usage guide, see [docs/phase2-observability.md](./docs/phase2-observability.md).
 
+## Phase 3 Completion
+
+Phase 3 has been successfully completed! See [docs/phase3-drift-detection.md](./docs/phase3-drift-detection.md) for:
+- Complete architecture and data models
+- Statistical methods (Chi-square, percent thresholds)
+- API reference (/v1/phase3/*)
+- Configuration and thresholds
+- Usage examples and best practices
+
+**Key Features Delivered:**
+- ✅ BehaviorProfileBuilder - Aggregates Phase 2 data into statistical profiles
+- ✅ BaselineManager - Creates and manages immutable baselines
+- ✅ DriftDetectionEngine - Detects behavioral changes via statistical comparison
+- ✅ AlertEmitter - Emits neutral, informational alerts
+- ✅ Query API - Read-only endpoints for profiles, baselines, and drift
+- ✅ Configuration - Tunable thresholds in config/drift_thresholds.yaml
+- ✅ Comprehensive Documentation - Complete guide with examples
+
+**Design Principles Enforced:**
+- Observational only (drift ≠ bad, just describes change)
+- Neutral language ("observed increase", not "degraded")
+- Statistical rigor (Chi-square tests, not heuristics)
+- Human-in-the-loop (humans decide actions, not the system)
+- Privacy-safe (derives from Phase 2, no prompts/responses)
+
 ## Technology Stack
 
-- **Backend**: Python 3.10, FastAPI, SQLAlchemy, Pydantic
+- **Backend**: Python 3.10+, FastAPI, SQLAlchemy, Pydantic
 - **Database**: PostgreSQL 15
+- **Statistics**: NumPy, SciPy (Phase 3 drift detection)
 - **UI**: React 18, TypeScript, Tailwind CSS, Vite
 - **Deployment**: Docker, Docker Compose
 - **SDK**: Python with httpx

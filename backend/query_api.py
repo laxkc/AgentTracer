@@ -23,9 +23,10 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, desc, func, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import desc, func, text
+from sqlalchemy.orm import Session
 
+from backend.database import engine, get_db
 from backend.models import (
     AgentDecisionDB,
     AgentDecisionResponse,
@@ -39,6 +40,9 @@ from backend.models import (
     AgentStepResponse,
     Base,
 )
+
+# Import Phase 3 router
+from backend.query_phase3 import router as phase3_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,25 +67,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================================
-# Database Configuration
-# ============================================================================
-
-# Read DATABASE_URL from environment variable, fallback to localhost for local dev
-import os
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/agent_observability")
-
-engine = create_engine(DATABASE_URL, echo=False)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def get_db():
-    """Dependency for database sessions"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Include Phase 3 router
+app.include_router(phase3_router)
 
 
 # ============================================================================

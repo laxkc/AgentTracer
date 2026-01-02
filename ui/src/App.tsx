@@ -4,6 +4,9 @@ import { Activity, BarChart3, Home } from 'lucide-react';
 import RunExplorer from './components/RunExplorer';
 import RunDetail from './pages/RunDetail';
 import Dashboard from './pages/Dashboard';
+import BehaviorDashboard from './pages/BehaviorDashboard';
+import BaselineManager from './pages/BaselineManager';
+import DriftDetail from './pages/DriftDetail';
 
 const App: React.FC = () => {
   const location = useLocation();
@@ -53,6 +56,28 @@ const App: React.FC = () => {
                 <BarChart3 className="w-4 h-4" />
                 Runs
               </Link>
+              <Link
+                to="/behaviors"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/behaviors')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Behaviors
+              </Link>
+              <Link
+                to="/baselines"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/baselines')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Baselines
+              </Link>
+
+      
             </div>
 
             {/* Health Status */}
@@ -70,6 +95,9 @@ const App: React.FC = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/runs" element={<RunExplorer />} />
           <Route path="/runs/:runId" element={<RunDetail />} />
+          <Route path="/behaviors" element={<BehaviorDashboard />} />
+          <Route path="/baselines" element={<BaselineManager />} />
+          <Route path="/drift/:driftId" element={<DriftDetail />} />
         </Routes>
       </main>
 

@@ -152,6 +152,7 @@ const Dashboard: React.FC = () => {
             {stats?.success_rate.toFixed(1) || 0}%
           </p>
           <p className="text-xs text-gray-500 mt-1">
+            
             {stats?.total_runs - (stats?.total_failures || 0)} successful
           </p>
         </div>
