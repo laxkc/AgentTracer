@@ -1,7 +1,7 @@
 """
 Example Agent: Customer Support Agent with Observability
 
-This example demonstrates how to integrate the Agent Observability SDK
+This example demonstrates how to integrate the AgentTracer SDK
 into a production agent application.
 
 The agent:
