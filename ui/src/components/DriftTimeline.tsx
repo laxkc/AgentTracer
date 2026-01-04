@@ -2,7 +2,7 @@
  * Phase 3 - Drift Timeline Component
  *
  * Visualizes drift events over time for a specific agent.
- * Shows behavioral changes in a timeline view.
+ * Shows behavioral changes in a timeline view with charts.
  *
  * Design Constraints:
  * - Observational language only
@@ -11,6 +11,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Select } from './ui/select';
 
 interface BehaviorDrift {
   drift_id: string;
@@ -57,6 +59,7 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [showChart, setShowChart] = useState(true);
 
   useEffect(() => {
     fetchDriftData();
@@ -130,6 +133,30 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
     return acc;
   }, {} as Record<string, BehaviorDrift[]>);
 
+  // Prepare chart data - group by metric and date
+  const chartData = React.useMemo(() => {
+    const dataMap = new Map<string, { date: string; [key: string]: number | string }>();
+
+    filteredEvents.forEach((drift) => {
+      const date = new Date(drift.detected_at).toLocaleDateString();
+      const key = date;
+
+      if (!dataMap.has(key)) {
+        dataMap.set(key, { date });
+      }
+
+      const entry = dataMap.get(key)!;
+      entry[drift.metric] = drift.observed_value * 100; // Convert to percentage
+    });
+
+    return Array.from(dataMap.values()).sort((a, b) => 
+      new Date(a.date as string).getTime() - new Date(b.date as string).getTime()
+    );
+  }, [filteredEvents]);
+
+  // Get unique metrics for chart lines
+  const chartMetrics = Array.from(new Set(filteredEvents.map((d) => d.metric))).slice(0, 5); // Limit to 5 metrics for readability
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'low':
@@ -191,10 +218,9 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Metric</label>
-            <select
+            <Select
               value={selectedMetric}
               onChange={(e) => setSelectedMetric(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="all">All Metrics</option>
               {uniqueMetrics.map((metric) => (
@@ -202,15 +228,14 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
                   {metric}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Drift Type</label>
-            <select
+            <Select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="all">All Types</option>
               {uniqueTypes.map((type) => (
@@ -218,10 +243,75 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
                   {type}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
       </div>
+
+      {/* Chart Toggle */}
+      <div className="bg-white rounded-lg shadow p-4 border border-gray-200 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-gray-700">Visualization</h3>
+          <p className="text-xs text-gray-500">Toggle between chart and list view</p>
+        </div>
+        <label className="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showChart}
+            onChange={(e) => setShowChart(e.target.checked)}
+            className="sr-only"
+          />
+          <div className={`relative inline-block w-14 h-8 rounded-full transition-colors ${showChart ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+            <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${showChart ? 'translate-x-6' : ''}`}></div>
+          </div>
+          <span className="ml-3 text-sm text-gray-700">{showChart ? 'Chart' : 'List'}</span>
+        </label>
+      </div>
+
+      {/* Chart Visualization */}
+      {showChart && chartData.length > 0 && (
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Drift Over Time</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="date" 
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                label={{ value: 'Value (%)', angle: -90, position: 'insideLeft' }}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip 
+                formatter={(value: number) => `${value.toFixed(2)}%`}
+                labelStyle={{ color: '#374151' }}
+              />
+              <Legend />
+              {chartMetrics.map((metric, index) => {
+                const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+                return (
+                  <Line
+                    key={metric}
+                    type="monotone"
+                    dataKey={metric}
+                    stroke={colors[index % colors.length]}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    name={metric.length > 30 ? `${metric.substring(0, 30)}...` : metric}
+                  />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+          {chartMetrics.length === 0 && (
+            <p className="text-center text-gray-500 py-8">No data available for chart</p>
+          )}
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -249,8 +339,8 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </div>
       </div>
 
-      {/* Timeline */}
-      {filteredEvents.length === 0 ? (
+      {/* Timeline List */}
+      {!showChart && filteredEvents.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 border border-gray-200 text-center">
           <p className="text-gray-500">No drift events found for the selected filters</p>
         </div>

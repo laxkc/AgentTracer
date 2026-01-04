@@ -14,6 +14,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Filter, ChevronRight, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Button } from './ui/button';
+import { Select } from './ui/select';
+import { Input } from './ui/input';
 
 const QUERY_API_URL = 'http://localhost:8001';
 
@@ -153,12 +156,13 @@ const RunExplorer: React.FC = () => {
           <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
           <p className="text-red-600">{error}</p>
-          <button
+          <Button
             onClick={fetchRuns}
-            className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            variant="destructive"
+            className="mt-4"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -181,56 +185,54 @@ const RunExplorer: React.FC = () => {
             <Filter className="w-5 h-5 text-gray-500" />
             <span className="font-medium text-gray-700">Filters</span>
           </div>
-          <button
+          <Button
             onClick={() => setShowFilters(!showFilters)}
-            className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+            variant="link"
+            size="sm"
           >
             {showFilters ? 'Hide' : 'Show'}
-          </button>
+          </Button>
         </div>
 
         {showFilters && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
+            <Input
               type="text"
               placeholder="Agent ID"
               value={filters.agent_id}
               onChange={(e) => handleFilterChange('agent_id', e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <input
+            <Input
               type="text"
               placeholder="Agent Version"
               value={filters.agent_version}
               onChange={(e) => handleFilterChange('agent_version', e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <select
+            <Select
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="success">Success</option>
               <option value="failure">Failure</option>
               <option value="partial">Partial</option>
-            </select>
-            <select
+            </Select>
+            <Select
               value={filters.environment}
               onChange={(e) => handleFilterChange('environment', e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Environments</option>
               <option value="production">Production</option>
               <option value="staging">Staging</option>
               <option value="development">Development</option>
-            </select>
-            <button
+            </Select>
+            <Button
               onClick={clearFilters}
-              className="col-span-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-4 py-2 font-medium"
+              variant="secondary"
+              className="col-span-1"
             >
               Clear Filters
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -320,23 +322,25 @@ const RunExplorer: React.FC = () => {
 
       {/* Pagination */}
       <div className="mt-6 flex items-center justify-between">
-        <button
+        <Button
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
-          className="px-4 py-2 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          variant="outline"
+          size="sm"
         >
           Previous
-        </button>
+        </Button>
         <span className="text-sm text-gray-700">
           Page {page}
         </span>
-        <button
+        <Button
           onClick={() => setPage(p => p + 1)}
           disabled={runs.length < pageSize}
-          className="px-4 py-2 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          variant="outline"
+          size="sm"
         >
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );

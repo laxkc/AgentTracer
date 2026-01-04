@@ -10,7 +10,7 @@ Constraints:
 - Observational semantics only
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import UUID
 
@@ -418,5 +418,32 @@ async def get_drift(
 
     if not drift:
         raise HTTPException(status_code=404, detail=f"Drift {drift_id} not found")
+
+    return drift
+
+
+@router.post("/drift/{drift_id}/resolve", response_model=BehaviorDriftResponse)
+async def resolve_drift(
+    drift_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """
+    Mark a drift event as resolved.
+
+    This updates the resolved_at timestamp. Drift events are immutable otherwise.
+    """
+    drift = db.query(BehaviorDriftDB).filter(
+        BehaviorDriftDB.drift_id == drift_id
+    ).first()
+
+    if not drift:
+        raise HTTPException(status_code=404, detail=f"Drift {drift_id} not found")
+
+    if drift.resolved_at:
+        raise HTTPException(status_code=400, detail="Drift event is already resolved")
+
+    drift.resolved_at = datetime.utcnow()
+    db.commit()
+    db.refresh(drift)
 
     return drift

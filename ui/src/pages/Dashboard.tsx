@@ -21,6 +21,7 @@ import {
   Clock,
   ArrowRight,
 } from 'lucide-react';
+import { Button } from '../components/ui/button';
 
 const QUERY_API_URL = 'http://localhost:8001';
 
@@ -107,12 +108,13 @@ const Dashboard: React.FC = () => {
           <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-red-800 mb-2 text-center">Error</h2>
           <p className="text-red-600 text-center">{error}</p>
-          <button
+          <Button
             onClick={fetchDashboardData}
-            className="mt-4 w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            variant="destructive"
+            className="mt-4 w-full"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -149,11 +151,10 @@ const Dashboard: React.FC = () => {
             )}
           </div>
           <p className="text-3xl font-bold text-gray-900">
-            {stats?.success_rate.toFixed(1) || 0}%
+            {(stats?.success_rate ?? 0).toFixed(1)}%
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            
-            {stats?.total_runs - (stats?.total_failures || 0)} successful
+            {(stats?.total_runs || 0) - (stats?.total_failures || 0)} successful
           </p>
         </div>
 

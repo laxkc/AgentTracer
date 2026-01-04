@@ -22,6 +22,7 @@ import {
   GitBranch,
   Zap,
 } from 'lucide-react';
+import { Button } from '../components/ui/button';
 import TraceTimeline from '../components/TraceTimeline';
 import FailureBreakdown from '../components/FailureBreakdown';
 import DecisionsList from '../components/DecisionsList';
@@ -124,23 +125,25 @@ const RunDetail: React.FC = () => {
   if (error || !run) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <button
+        <Button
           onClick={() => navigate('/runs')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6"
+          variant="ghost"
+          className="mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Runs
-        </button>
+        </Button>
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
           <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-red-800 mb-2 text-center">Error</h2>
           <p className="text-red-600 text-center">{error || 'Run not found'}</p>
-          <button
+          <Button
             onClick={fetchRunDetails}
-            className="mt-4 w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            variant="destructive"
+            className="mt-4 w-full"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -149,13 +152,14 @@ const RunDetail: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Back Button */}
-      <button
+      <Button
         onClick={() => navigate('/runs')}
-        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6 transition-colors"
+        variant="ghost"
+        className="mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Runs
-      </button>
+      </Button>
 
       {/* Run Header */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">

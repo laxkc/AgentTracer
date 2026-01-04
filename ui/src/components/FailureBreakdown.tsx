@@ -175,7 +175,7 @@ const FailureBreakdown: React.FC<FailureBreakdownProps> = ({
 
       {/* Failures List */}
       <div className="space-y-4">
-        {failures.map((failure, index) => {
+        {failures.map((failure) => {
           const stepInfo = getStepInfo(failure.step_id);
           const recommendations = getRecommendations(failure);
 

@@ -1,113 +1,94 @@
 /**
- * Phase 3 - Behavior Dashboard
+ * Phase 3 - Behavior Dashboard (shadcn/ui Edition)
  *
- * Overview of all agents and their behavioral stability.
- * Shows active baselines and recent drift events.
- *
- * Design Constraints:
- * - Observational language only (no judgmental terms)
- * - No health scores or rankings
- * - Drift is descriptive, not evaluative
+ * Professional observability dashboard for agent behavioral stability
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-interface BehaviorBaseline {
-  baseline_id: string;
-  agent_id: string;
-  agent_version: string;
-  environment: string;
-  baseline_type: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface BehaviorDrift {
-  drift_id: string;
-  agent_id: string;
-  agent_version: string;
-  environment: string;
-  drift_type: string;
-  metric: string;
-  severity: string;
-  detected_at: string;
-  resolved_at: string | null;
-}
-
-interface DriftSummary {
-  total_drift_events: number;
-  unresolved_drift_events: number;
-  drift_by_severity: Record<string, number>;
-  drift_by_type: Record<string, number>;
-  agents_with_drift: number;
-}
+import {
+  Activity,
+  AlertTriangle,
+  TrendingUp,
+  Filter,
+  RefreshCw,
+  X,
+  Eye,
+  GitCompare,
+  Search,
+  Users,
+} from 'lucide-react';
+import { useDrift, useDriftSummary, useBaselines } from '../hooks/usePhase3';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import {
+  StatCardSkeleton,
+  TableSkeleton,
+} from '../components/ui/LoadingSkeleton';
+import {
+  NoDataEmptyState,
+  NoSearchResultsEmptyState,
+  ErrorEmptyState,
+} from '../components/ui/EmptyState';
+import { formatRelativeTime, formatNumber, capitalize } from '../utils/helpers';
 
 interface AgentRow {
   agent_id: string;
   agent_version: string;
   environment: string;
-  baseline: BehaviorBaseline | null;
+  baseline_id: string | null;
+  baseline_type: string | null;
+  is_active: boolean;
   drift_count: number;
   unresolved_drift: number;
-  latest_drift: BehaviorDrift | null;
+  latest_drift: {
+    drift_id: string;
+    severity: string;
+    drift_type: string;
+    detected_at: string;
+  } | null;
 }
 
 const BehaviorDashboard: React.FC = () => {
-  const [baselines, setBaselines] = useState<BehaviorBaseline[]>([]);
-  const [driftEvents, setDriftEvents] = useState<BehaviorDrift[]>([]);
-  const [summary, setSummary] = useState<DriftSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Filters
+  // State
   const [environmentFilter, setEnvironmentFilter] = useState<string>('all');
   const [showOnlyDrift, setShowOnlyDrift] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Data fetching
+  const { data: baselines, loading: loadingBaselines, error: baselinesError, refetch: refetchBaselines } = useBaselines({ limit: 1000 });
+  const { data: driftEvents, loading: loadingDrift, error: driftError, refetch: refetchDrift } = useDrift({ resolved: false, limit: 1000 });
+  const { data: summary, loading: loadingSummary, refetch: refetchSummary } = useDriftSummary(7);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const loading = loadingBaselines || loadingDrift || loadingSummary;
+  const error = baselinesError || driftError;
 
-      // Fetch active baselines
-      const baselinesRes = await fetch('http://localhost:8001/v1/phase3/baselines?is_active=true&limit=1000');
-      const baselinesData = await baselinesRes.json();
-      setBaselines(baselinesData);
-
-      // Fetch recent drift (last 7 days, unresolved)
-      const driftRes = await fetch('http://localhost:8001/v1/phase3/drift?resolved=false&limit=1000');
-      const driftData = await driftRes.json();
-      setDriftEvents(driftData);
-
-      // Fetch summary
-      const summaryRes = await fetch('http://localhost:8001/v1/phase3/drift/summary?days=7');
-      const summaryData = await summaryRes.json();
-      setSummary(summaryData);
-
-      setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      setLoading(false);
-    }
-  };
-
-  // Group data by agent
-  const agentRows: AgentRow[] = React.useMemo(() => {
+  // Process data
+  const agentRows: AgentRow[] = useMemo(() => {
+    if (!baselines && !driftEvents) return [];
     const agentMap = new Map<string, AgentRow>();
 
-    // Add baselines
-    baselines.forEach((baseline) => {
+    baselines?.forEach((baseline) => {
       const key = `${baseline.agent_id}|${baseline.agent_version}|${baseline.environment}`;
       if (!agentMap.has(key)) {
         agentMap.set(key, {
           agent_id: baseline.agent_id,
           agent_version: baseline.agent_version,
           environment: baseline.environment,
-          baseline: baseline,
+          baseline_id: baseline.baseline_id,
+          baseline_type: baseline.baseline_type,
+          is_active: baseline.is_active,
           drift_count: 0,
           unresolved_drift: 0,
           latest_drift: null,
@@ -115,290 +96,380 @@ const BehaviorDashboard: React.FC = () => {
       }
     });
 
-    // Add drift counts
-    driftEvents.forEach((drift) => {
+    driftEvents?.forEach((drift) => {
       const key = `${drift.agent_id}|${drift.agent_version}|${drift.environment}`;
       let row = agentMap.get(key);
-
       if (!row) {
-        // Agent has drift but no baseline
         row = {
           agent_id: drift.agent_id,
           agent_version: drift.agent_version,
           environment: drift.environment,
-          baseline: null,
+          baseline_id: null,
+          baseline_type: null,
+          is_active: false,
           drift_count: 0,
           unresolved_drift: 0,
           latest_drift: null,
         };
         agentMap.set(key, row);
       }
-
       row.drift_count++;
-      if (!drift.resolved_at) {
-        row.unresolved_drift++;
-      }
-
-      // Track latest drift
+      if (!drift.resolved_at) row.unresolved_drift++;
       if (!row.latest_drift || new Date(drift.detected_at) > new Date(row.latest_drift.detected_at)) {
-        row.latest_drift = drift;
+        row.latest_drift = {
+          drift_id: drift.drift_id,
+          severity: drift.severity,
+          drift_type: drift.drift_type,
+          detected_at: drift.detected_at,
+        };
       }
     });
-
     return Array.from(agentMap.values());
   }, [baselines, driftEvents]);
 
-  // Apply filters
-  const filteredRows = agentRows.filter((row) => {
-    if (environmentFilter !== 'all' && row.environment !== environmentFilter) {
-      return false;
-    }
-    if (showOnlyDrift && row.unresolved_drift === 0) {
-      return false;
-    }
-    return true;
-  });
+  // Filtering
+  const filteredRows = useMemo(() => {
+    return agentRows.filter((row) => {
+      if (environmentFilter !== 'all' && row.environment !== environmentFilter) return false;
+      if (showOnlyDrift && row.unresolved_drift === 0) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (!row.agent_id.toLowerCase().includes(query) && !row.agent_version.toLowerCase().includes(query)) return false;
+      }
+      if (severityFilter !== 'all' && row.latest_drift?.severity !== severityFilter) return false;
+      return true;
+    });
+  }, [agentRows, environmentFilter, showOnlyDrift, searchQuery, severityFilter]);
 
-  // Get unique environments
-  const environments = Array.from(new Set(agentRows.map((r) => r.environment)));
+  const environments = useMemo(() => Array.from(new Set(agentRows.map((r) => r.environment))), [agentRows]);
+  const hasActiveFilters = searchQuery || environmentFilter !== 'all' || severityFilter !== 'all' || showOnlyDrift;
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'low':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'high':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+  const clearFilters = () => {
+    setSearchQuery('');
+    setEnvironmentFilter('all');
+    setSeverityFilter('all');
+    setShowOnlyDrift(false);
   };
 
+  const refreshAll = async () => {
+    await Promise.all([refetchBaselines(), refetchDrift(), refetchSummary()]);
+  };
+
+  const getSeverityVariant = (severity: string): "default" | "warning" | "destructive" => {
+    if (severity === 'high') return 'destructive';
+    if (severity === 'medium') return 'warning';
+    return 'default';
+  };
+
+  const getEnvironmentVariant = (env: string): "default" | "success" | "warning" | "secondary" => {
+    if (env === 'production') return 'success';
+    if (env === 'staging') return 'warning';
+    return 'secondary';
+  };
+
+  // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading behavior data...</p>
+      <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+        <div className="space-y-2">
+          <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-96 bg-gray-200 rounded animate-pulse" />
         </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+        <TableSkeleton rows={5} />
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-red-600">Error: {error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="container mx-auto p-6 max-w-7xl">
+        <ErrorEmptyState message={error} onRetry={refreshAll} />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Behavior Dashboard</h1>
-        <p className="text-gray-600">
-          Observational view of agent behavioral stability and detected changes
-        </p>
+    <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+      {/* Page Header - SINGLE INSTANCE */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Activity className="h-6 w-6 text-blue-600" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Behavior Dashboard</h1>
+          </div>
+          <p className="text-gray-500">
+            Observational view of agent behavioral stability and detected changes
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={refreshAll}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Stats Grid */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="text-sm font-medium text-gray-600">Agents Monitored</div>
-            <div className="text-3xl font-bold text-gray-900 mt-2">{agentRows.length}</div>
-            <div className="text-xs text-gray-500 mt-1">with active baselines</div>
-          </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Agents Monitored</CardTitle>
+              <Users className="h-4 w-4 text-gray-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(agentRows.length)}</div>
+              <p className="text-xs text-gray-500">with active baselines</p>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="text-sm font-medium text-gray-600">Unresolved Drift</div>
-            <div className="text-3xl font-bold text-gray-900 mt-2">{summary.unresolved_drift_events}</div>
-            <div className="text-xs text-gray-500 mt-1">changes detected</div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unresolved Drift</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{formatNumber(summary.unresolved_drift_events)}</div>
+              <p className="text-xs text-gray-500">changes detected</p>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="text-sm font-medium text-gray-600">Drift Events (7d)</div>
-            <div className="text-3xl font-bold text-gray-900 mt-2">{summary.total_drift_events}</div>
-            <div className="text-xs text-gray-500 mt-1">total detected</div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Drift Events (7d)</CardTitle>
+              <TrendingUp className="h-4 w-4 text-gray-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(summary.total_drift_events)}</div>
+              <p className="text-xs text-gray-500">total detected</p>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="text-sm font-medium text-gray-600">Agents with Drift</div>
-            <div className="text-3xl font-bold text-gray-900 mt-2">{summary.agents_with_drift}</div>
-            <div className="text-xs text-gray-500 mt-1">observing changes</div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Agents with Drift</CardTitle>
+              <GitCompare className="h-4 w-4 text-gray-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(summary.agents_with_drift)}</div>
+              <p className="text-xs text-gray-500">observing changes</p>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6 border border-gray-200">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
-            <select
-              value={environmentFilter}
-              onChange={(e) => setEnvironmentFilter(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Environments</option>
-              {environments.map((env) => (
-                <option key={env} value={env}>
-                  {env}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="showOnlyDrift"
-              checked={showOnlyDrift}
-              onChange={(e) => setShowOnlyDrift(e.target.checked)}
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-            />
-            <label htmlFor="showOnlyDrift" className="ml-2 text-sm text-gray-700">
-              Show only agents with unresolved drift
-            </label>
-          </div>
-
-          <div className="ml-auto">
-            <button
-              onClick={fetchData}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Agent Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Agent
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Environment
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Baseline
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Drift Detected
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Latest Change
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredRows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                  No agents match the current filters
-                </td>
-              </tr>
-            ) : (
-              filteredRows.map((row) => (
-                <tr key={`${row.agent_id}|${row.agent_version}|${row.environment}`} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{row.agent_id}</div>
-                    <div className="text-xs text-gray-500">v{row.agent_version}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-800">
-                      {row.environment}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {row.baseline ? (
-                      <div className="text-sm">
-                        <div className="text-green-600 font-medium">Active</div>
-                        <div className="text-xs text-gray-500">{row.baseline.baseline_type}</div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">No baseline</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {row.unresolved_drift > 0 ? (
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900">{row.unresolved_drift} unresolved</div>
-                        <div className="text-xs text-gray-500">{row.drift_count} total</div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">No drift</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {row.latest_drift ? (
-                      <div className="text-sm">
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-medium rounded border ${getSeverityColor(
-                            row.latest_drift.severity
-                          )}`}
-                        >
-                          {row.latest_drift.severity}
-                        </span>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {new Date(row.latest_drift.detected_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      {row.latest_drift && (
-                        <Link
-                          to={`/drift/${row.latest_drift.drift_id}`}
-                          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                        >
-                          View Drift
-                        </Link>
-                      )}
-                      <Link
-                        to={`/drift/timeline?agent_id=${row.agent_id}&agent_version=${row.agent_version}&environment=${row.environment}`}
-                        className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                      >
-                        Timeline
-                        </Link>
-                    </div>
-                  </td>
-                </tr>
-              ))
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <CardTitle className="text-lg">Filters</CardTitle>
+              {hasActiveFilters && <Badge variant="info">Active</Badge>}
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="lg:col-span-2">
+              <label className="text-sm font-medium mb-2 block">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search agent ID or version..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Environment</label>
+              <select
+                value={environmentFilter}
+                onChange={(e) => setEnvironmentFilter(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <option value="all">All Environments</option>
+                {environments.map((env) => (
+                  <option key={env} value={env}>{capitalize(env)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Severity</label>
+              <select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <option value="all">All Severities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showOnlyDrift}
+                  onChange={(e) => setShowOnlyDrift(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm">Only with drift</span>
+              </label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Agents Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Agent Behavior Summary
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              ({formatNumber(filteredRows.length)} {filteredRows.length === 1 ? 'agent' : 'agents'})
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {filteredRows.length === 0 ? (
+            <div className="p-8">
+              {hasActiveFilters ? (
+                <NoSearchResultsEmptyState onClear={clearFilters} />
+              ) : (
+                <NoDataEmptyState entityName="agents" />
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Environment</TableHead>
+                  <TableHead>Baseline</TableHead>
+                  <TableHead>Drift Status</TableHead>
+                  <TableHead>Latest Event</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRows.map((row) => (
+                  <TableRow key={`${row.agent_id}-${row.agent_version}-${row.environment}`}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{row.agent_id}</div>
+                        <div className="text-sm text-gray-500">v{row.agent_version}</div>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge variant={getEnvironmentVariant(row.environment)}>
+                        {capitalize(row.environment)}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      {row.baseline_id ? (
+                        <div className="space-y-1">
+                          <Badge variant={row.is_active ? 'success' : 'secondary'}>
+                            {row.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          {row.baseline_type && (
+                            <div className="text-xs text-gray-500">{capitalize(row.baseline_type)}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <Badge variant="outline">No baseline</Badge>
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      {row.unresolved_drift > 0 ? (
+                        <div>
+                          <div className="font-medium text-orange-600">
+                            {formatNumber(row.unresolved_drift)} unresolved
+                          </div>
+                          {row.drift_count > 0 && (
+                            <div className="text-xs text-gray-500">{formatNumber(row.drift_count)} total</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">No drift</span>
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      {row.latest_drift ? (
+                        <div className="space-y-1">
+                          <div className="flex gap-1">
+                            <Badge variant={getSeverityVariant(row.latest_drift.severity)}>
+                              {capitalize(row.latest_drift.severity)}
+                            </Badge>
+                            <Badge variant="outline">{capitalize(row.latest_drift.drift_type)}</Badge>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatRelativeTime(row.latest_drift.detected_at)}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {row.latest_drift && (
+                          <Link to={`/drift/${row.latest_drift.drift_id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </Link>
+                        )}
+                        <Link to={`/drift/timeline?agent_id=${row.agent_id}&agent_version=${row.agent_version}&environment=${row.environment}`}>
+                          <Button variant="ghost" size="sm">
+                            <GitCompare className="h-4 w-4 mr-1" />
+                            Timeline
+                          </Button>
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Info Note */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Drift indicates that agent behavior has changed relative to the baseline.
-          Drift is observational - it describes change, not quality. Human interpretation is required
-          to determine if action is needed.
-        </p>
-      </div>
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="pt-6">
+          <p className="text-sm text-blue-900">
+            <strong>Note:</strong> Drift detection is observational and descriptive. It identifies when behavioral
+            patterns change but does not make judgments about quality or correctness. Human interpretation is required
+            to determine if observed changes warrant investigation.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };

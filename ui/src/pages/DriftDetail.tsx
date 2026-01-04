@@ -10,8 +10,23 @@
  * - Drift is descriptive, not evaluative
  */
 
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Clock,
+  CheckCircle2,
+  Info,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
 
 interface BehaviorDrift {
   drift_id: string;
@@ -56,6 +71,7 @@ const DriftDetail: React.FC = () => {
   const [baseline, setBaseline] = useState<BehaviorBaseline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     if (driftId) {
@@ -71,7 +87,7 @@ const DriftDetail: React.FC = () => {
       // Fetch drift event
       const driftRes = await fetch(`http://localhost:8001/v1/phase3/drift/${driftId}`);
       if (!driftRes.ok) {
-        throw new Error('Drift event not found');
+        throw new Error("Drift event not found");
       }
       const driftData = await driftRes.json();
       setDrift(driftData);
@@ -87,34 +103,47 @@ const DriftDetail: React.FC = () => {
 
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch drift details');
+      setError(err instanceof Error ? err.message : "Failed to fetch drift details");
       setLoading(false);
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'low':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'high':
-        return 'bg-orange-100 text-orange-800 border-orange-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+  const handleResolveDrift = async () => {
+    if (!drift || drift.resolved_at) {
+      return;
+    }
+
+    try {
+      setResolving(true);
+      const response = await fetch(`http://localhost:8001/v1/phase3/drift/${driftId}/resolve`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to resolve drift");
+      }
+
+      const resolvedDrift = await response.json();
+      setDrift(resolvedDrift);
+      toast.success("Drift event marked as resolved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to resolve drift");
+    } finally {
+      setResolving(false);
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'decision':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'signal':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'latency':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+  const getSeverityVariant = (severity: string) => {
+    switch (severity) {
+      case "low":
+        return "secondary";
+      case "medium":
+        return "default";
+      case "high":
+        return "destructive";
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return "secondary";
     }
   };
 
@@ -122,7 +151,7 @@ const DriftDetail: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading drift details...</p>
         </div>
       </div>
@@ -133,262 +162,343 @@ const DriftDetail: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <p className="text-red-600">Error: {error || 'Drift event not found'}</p>
-          <Link to="/behavior" className="mt-4 inline-block text-indigo-600 hover:text-indigo-900">
-            ← Back to Dashboard
+          <p className="text-red-600">Error: {error || "Drift event not found"}</p>
+          <Link to="/behaviors" className="mt-4 inline-block text-blue-600 hover:text-blue-700">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
           </Link>
         </div>
       </div>
     );
   }
 
-  const changeDirection = drift.delta > 0 ? 'increase' : 'decrease';
-  const changeVerb = drift.delta > 0 ? 'increased' : 'decreased';
+  const changeVerb = drift.delta > 0 ? "increased" : "decreased";
+  const TrendIcon = drift.delta > 0 ? TrendingUp : TrendingDown;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      {/* Header */}
-      <div className="mb-6">
-        <Link to="/behavior" className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
-          ← Back to Dashboard
+    <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
+      {/* Page Header - SINGLE INSTANCE */}
+      <div className="space-y-1">
+        <Link
+          to="/behaviors"
+          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium mb-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Behavior Dashboard
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-2">Drift Event Details</h1>
-        <p className="text-gray-600 mt-1">Detailed view of detected behavioral change</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-orange-100 rounded-lg">
+            <AlertTriangle className="h-6 w-6 text-orange-600" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Drift Event Details</h1>
+        </div>
+        <p className="text-gray-500">Detailed view of detected behavioral change</p>
       </div>
 
       {/* Summary Card */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span
-                className={`px-3 py-1 text-sm font-medium rounded border ${getSeverityColor(
-                  drift.severity
-                )}`}
-              >
-                {drift.severity} severity
-              </span>
-              <span
-                className={`px-3 py-1 text-sm font-medium rounded border ${getTypeColor(
-                  drift.drift_type
-                )}`}
-              >
-                {drift.drift_type} drift
-              </span>
-              {drift.resolved_at && (
-                <span className="px-3 py-1 text-sm font-medium rounded border border-green-300 bg-green-100 text-green-800">
-                  Resolved
-                </span>
-              )}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant={getSeverityVariant(drift.severity)}>
+                  {drift.severity} severity
+                </Badge>
+                <Badge variant="secondary">{drift.drift_type} drift</Badge>
+                {drift.resolved_at && (
+                  <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Resolved
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-gray-400" />
+                <div className="text-lg font-semibold text-gray-900">{drift.metric}</div>
+              </div>
+              <div className="text-sm text-gray-600">
+                {drift.agent_id} v{drift.agent_version} ({drift.environment})
+              </div>
             </div>
-            <div className="text-lg font-semibold text-gray-900">{drift.metric}</div>
-            <div className="text-sm text-gray-600 mt-1">
-              {drift.agent_id} v{drift.agent_version} ({drift.environment})
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-600">Detected</div>
-            <div className="text-base font-medium text-gray-900">
-              {new Date(drift.detected_at).toLocaleDateString()}
-            </div>
-            <div className="text-xs text-gray-500">
-              {new Date(drift.detected_at).toLocaleTimeString()}
+            <div className="text-right space-y-1">
+              <div className="text-sm text-gray-600">Detected</div>
+              <div className="text-base font-medium text-gray-900">
+                {new Date(drift.detected_at).toLocaleDateString()}
+              </div>
+              <div className="text-xs text-gray-500">
+                {new Date(drift.detected_at).toLocaleTimeString()}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Change Description */}
-        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-          <div className="text-sm font-medium text-gray-700 mb-2">Observed Change</div>
-          <p className="text-base text-gray-900">
-            The metric <span className="font-semibold">{drift.metric}</span> {changeVerb} from{' '}
-            <span className="font-bold text-gray-900">
-              {(drift.baseline_value * 100).toFixed(2)}%
-            </span>{' '}
-            to{' '}
-            <span className="font-bold text-gray-900">
-              {(drift.observed_value * 100).toFixed(2)}%
-            </span>
-            , representing a{' '}
-            <span className="font-bold text-gray-900">
-              {drift.delta_percent > 0 ? '+' : ''}
-              {drift.delta_percent.toFixed(1)}%
-            </span>{' '}
-            change.
-          </p>
-        </div>
-      </div>
+          {/* Main Change Description */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-start gap-3">
+            <TrendIcon className="h-5 w-5 text-gray-600 mt-0.5" />
+            <div>
+              <div className="text-sm font-medium text-gray-700 mb-1">Observed Change</div>
+              <p className="text-base text-gray-900">
+                The metric <span className="font-semibold">{drift.metric}</span> {changeVerb} from{" "}
+                <span className="font-bold text-gray-900">
+                  {(drift.baseline_value * 100).toFixed(2)}%
+                </span>{" "}
+                to{" "}
+                <span className="font-bold text-gray-900">
+                  {(drift.observed_value * 100).toFixed(2)}%
+                </span>
+                , representing a{" "}
+                <span className="font-bold text-gray-900">
+                  {drift.delta_percent > 0 ? "+" : ""}
+                  {drift.delta_percent.toFixed(1)}%
+                </span>{" "}
+                change.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Comparison Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Baseline */}
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Baseline Value</h2>
-          <div className="text-center">
-            <div className="text-5xl font-bold text-gray-900 mb-2">
-              {(drift.baseline_value * 100).toFixed(1)}%
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Baseline Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Baseline Value
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center mb-4">
+              <div className="text-5xl font-bold text-gray-900 mb-2">
+                {(drift.baseline_value * 100).toFixed(1)}%
+              </div>
+              <div className="text-sm text-gray-600">Expected behavior</div>
             </div>
-            <div className="text-sm text-gray-600">Expected behavior</div>
-          </div>
-          {baseline && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="text-xs text-gray-600 space-y-1">
-                <div>
-                  <span className="font-medium">Baseline Type:</span> {baseline.baseline_type}
+            {baseline && (
+              <div className="pt-4 border-t border-gray-200 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Baseline Type</span>
+                  <span className="text-gray-900 font-medium">{baseline.baseline_type}</span>
                 </div>
-                <div>
-                  <span className="font-medium">Created:</span>{' '}
-                  {new Date(baseline.created_at).toLocaleDateString()}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Created</span>
+                  <span className="text-gray-900 font-medium">
+                    {new Date(baseline.created_at).toLocaleDateString()}
+                  </span>
                 </div>
                 {baseline.approved_by && (
-                  <div>
-                    <span className="font-medium">Approved By:</span> {baseline.approved_by}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Approved By</span>
+                    <span className="text-gray-900 font-medium">{baseline.approved_by}</span>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Observed */}
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Observed Value</h2>
-          <div className="text-center">
-            <div className="text-5xl font-bold text-gray-900 mb-2">
-              {(drift.observed_value * 100).toFixed(1)}%
-            </div>
-            <div className="text-sm text-gray-600">Current behavior</div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>
-                <span className="font-medium">Window:</span>{' '}
-                {new Date(drift.observation_window_start).toLocaleDateString()} -{' '}
-                {new Date(drift.observation_window_end).toLocaleDateString()}
+        {/* Observed Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendIcon className="h-5 w-5" />
+              Observed Value
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center mb-4">
+              <div className="text-5xl font-bold text-gray-900 mb-2">
+                {(drift.observed_value * 100).toFixed(1)}%
               </div>
-              <div>
-                <span className="font-medium">Sample Size:</span> {drift.observation_sample_size} runs
+              <div className="text-sm text-gray-600">Current behavior</div>
+            </div>
+            <div className="pt-4 border-t border-gray-200 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Window Start</span>
+                <span className="text-gray-900 font-medium">
+                  {new Date(drift.observation_window_start).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Window End</span>
+                <span className="text-gray-900 font-medium">
+                  {new Date(drift.observation_window_end).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Sample Size</span>
+                <span className="text-gray-900 font-medium">
+                  {drift.observation_sample_size} runs
+                </span>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Statistical Details */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Statistical Analysis</h2>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Test Method</dt>
-            <dd className="text-sm text-gray-900 mt-1">{drift.test_method}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Statistical Significance</dt>
-            <dd className="text-sm text-gray-900 mt-1">
-              p = {drift.significance.toFixed(4)}
-              {drift.significance < 0.05 && (
-                <span className="ml-2 text-xs text-green-600">(p &lt; 0.05)</span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Absolute Change</dt>
-            <dd className="text-sm text-gray-900 mt-1">
-              {drift.delta > 0 ? '+' : ''}
-              {(drift.delta * 100).toFixed(2)}%
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Relative Change</dt>
-            <dd className="text-sm text-gray-900 mt-1">
-              {drift.delta_percent > 0 ? '+' : ''}
-              {drift.delta_percent.toFixed(1)}%
-            </dd>
-          </div>
-        </dl>
-      </div>
-
-      {/* Context Information */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Context Information</h2>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Drift ID</dt>
-            <dd className="text-sm text-gray-900 font-mono mt-1">{drift.drift_id}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Baseline ID</dt>
-            <dd className="text-sm text-gray-900 font-mono mt-1">{drift.baseline_id}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Drift Type</dt>
-            <dd className="text-sm text-gray-900 mt-1">{drift.drift_type}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Severity</dt>
-            <dd className="text-sm text-gray-900 mt-1">{drift.severity}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-600">Created At</dt>
-            <dd className="text-sm text-gray-900 mt-1">
-              {new Date(drift.created_at).toLocaleString()}
-            </dd>
-          </div>
-          {drift.resolved_at && (
-            <div>
-              <dt className="text-sm font-medium text-gray-600">Resolved At</dt>
-              <dd className="text-sm text-gray-900 mt-1">
-                {new Date(drift.resolved_at).toLocaleString()}
+      {/* Statistical Analysis */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Statistical Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Test Method</dt>
+              <dd className="text-sm text-gray-900">{drift.test_method}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Statistical Significance</dt>
+              <dd className="text-sm text-gray-900">
+                p = {drift.significance.toFixed(4)}
+                {drift.significance < 0.05 && (
+                  <span className="ml-2 text-xs text-green-600 font-medium">(p &lt; 0.05)</span>
+                )}
               </dd>
             </div>
-          )}
-        </dl>
-      </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Absolute Change</dt>
+              <dd className="text-sm text-gray-900">
+                {drift.delta > 0 ? "+" : ""}
+                {(drift.delta * 100).toFixed(2)}%
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Relative Change</dt>
+              <dd className="text-sm text-gray-900">
+                {drift.delta_percent > 0 ? "+" : ""}
+                {drift.delta_percent.toFixed(1)}%
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      {/* Context Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Context Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Drift ID</dt>
+              <dd className="text-sm text-gray-900 font-mono">{drift.drift_id}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Baseline ID</dt>
+              <dd className="text-sm text-gray-900 font-mono">{drift.baseline_id}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Drift Type</dt>
+              <dd className="text-sm text-gray-900">{drift.drift_type}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Severity</dt>
+              <dd className="text-sm text-gray-900">{drift.severity}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm font-medium text-gray-600">Created At</dt>
+              <dd className="text-sm text-gray-900">
+                {new Date(drift.created_at).toLocaleString()}
+              </dd>
+            </div>
+            {drift.resolved_at && (
+              <div className="space-y-1">
+                <dt className="text-sm font-medium text-gray-600">Resolved At</dt>
+                <dd className="text-sm text-gray-900">
+                  {new Date(drift.resolved_at).toLocaleString()}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </CardContent>
+      </Card>
 
       {/* Interpretation Guide */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-base font-semibold text-blue-900 mb-3">Interpreting This Drift Event</h3>
-        <div className="space-y-2 text-sm text-blue-800">
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900">
+            <Info className="h-5 w-5" />
+            Interpreting This Drift Event
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-blue-800">
           <p>
             <strong>What this means:</strong> The agent's behavior has changed relative to the
-            established baseline. Specifically, the distribution or value of{' '}
+            established baseline. Specifically, the distribution or value of{" "}
             <span className="font-medium">{drift.metric}</span> has shifted.
           </p>
           <p>
-            <strong>What this does NOT mean:</strong> This drift detection does not indicate whether
-            the change is good, bad, correct, or incorrect. Drift is purely observational.
+            <strong>What this does NOT mean:</strong> This drift detection does not indicate
+            whether the change is good, bad, correct, or incorrect. Drift is purely observational.
           </p>
+          <div>
+            <p className="mb-2">
+              <strong>Next steps:</strong> Review the context of this change. Consider:
+            </p>
+            <ul className="list-disc list-inside ml-4 space-y-1">
+              <li>Was there a recent deployment or configuration change?</li>
+              <li>Is this change expected based on known system updates?</li>
+              <li>Does the magnitude of change warrant investigation?</li>
+              <li>Are there related drift events in other metrics?</li>
+            </ul>
+          </div>
           <p>
-            <strong>Next steps:</strong> Review the context of this change. Consider:
-          </p>
-          <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>Was there a recent deployment or configuration change?</li>
-            <li>Is this change expected based on known system updates?</li>
-            <li>Does the magnitude of change warrant investigation?</li>
-            <li>Are there related drift events in other metrics?</li>
-          </ul>
-          <p className="mt-3">
             <strong>Remember:</strong> Human interpretation is required to determine if action is
             needed. The platform provides visibility, not decisions.
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Related Links */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Related</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/drift/timeline?agent_id=${drift.agent_id}&agent_version=${drift.agent_version}&environment=${drift.environment}`}
+            >
+              <Button variant="outline" size="sm">
+                <Clock className="h-4 w-4 mr-2" />
+                View Timeline for {drift.agent_id}
+              </Button>
+            </Link>
+            <Link to="/drift/compare">
+              <Button variant="outline" size="sm">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Compare Drift Events
+              </Button>
+            </Link>
+            <Link to="/behaviors">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Actions */}
-      <div className="mt-6 flex gap-4">
-        <Link
-          to={`/drift/timeline?agent_id=${drift.agent_id}&agent_version=${drift.agent_version}&environment=${drift.environment}`}
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-        >
-          View Drift Timeline
-        </Link>
-        <Link
-          to="/behavior"
-          className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-        >
-          Back to Dashboard
-        </Link>
-      </div>
+      {!drift.resolved_at && (
+        <div className="flex gap-4">
+          <Button onClick={handleResolveDrift} disabled={resolving}>
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {resolving ? "Resolving..." : "Mark as Resolved"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

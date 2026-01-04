@@ -152,7 +152,7 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
 
             {/* Signals of this type */}
             <div className="space-y-2">
-              {typeSignals.map((signal, index) => (
+              {typeSignals.map((signal) => (
                 <div
                   key={signal.signal_id}
                   className="bg-gray-50 rounded p-3 hover:bg-gray-100 transition-colors"

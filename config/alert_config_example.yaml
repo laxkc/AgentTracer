@@ -1,0 +1,245 @@
+# Alert Configuration for Phase 3 Drift Detection
+#
+# This file configures how drift alerts are emitted and delivered.
+#
+# Usage:
+#   1. Copy this file to config/alert_config.yaml
+#   2. Configure your alert channels below
+#   3. Set ALERT_CONFIG_PATH environment variable to point to this file
+
+# ============================================================================
+# Alert Channels
+# ============================================================================
+
+channels:
+  # Log channel - always enabled, writes to application logs
+  log:
+    enabled: true
+    level: "INFO"  # INFO, WARNING, ERROR
+    format: "json"  # json, text
+
+  # Database channel - stores alerts in alert_log table
+  database:
+    enabled: true
+    retention_days: 90  # How long to keep alert records
+
+  # Slack webhook
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"  # Set via environment variable
+    channel: "#agent-alerts"
+    username: "Agent Observatory"
+    icon_emoji: ":chart_with_upwards_trend:"
+    mention_on_severity:
+      high: "@oncall"  # Mention @oncall for high severity drift
+      medium: ""
+      low: ""
+
+  # PagerDuty integration
+  pagerduty:
+    enabled: false
+    integration_key: "${PAGERDUTY_INTEGRATION_KEY}"  # Set via environment variable
+    severity_mapping:
+      high: "error"      # Triggers PagerDuty incident
+      medium: "warning"  # Triggers PagerDuty alert
+      low: "info"        # Informational only
+
+  # Generic webhook (for custom integrations)
+  webhook:
+    enabled: false
+    url: "${CUSTOM_WEBHOOK_URL}"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer ${WEBHOOK_TOKEN}"
+    timeout_seconds: 10
+    retry_attempts: 3
+
+# ============================================================================
+# Alert Filtering
+# ============================================================================
+
+filters:
+  # Minimum severity to emit alerts
+  min_severity: "low"  # low, medium, high
+
+  # Filter by drift type
+  drift_types:
+    - "decision"
+    - "signal"
+    - "latency"
+
+  # Filter by environment
+  environments:
+    - "production"
+    - "staging"
+    # - "development"  # Uncomment to enable dev alerts
+
+  # Suppress alerts for specific agents
+  suppressed_agents: []
+    # - "test_agent"
+    # - "deprecated_agent"
+
+# ============================================================================
+# Alert Rate Limiting
+# ============================================================================
+
+rate_limiting:
+  # Maximum alerts per agent per time window
+  enabled: true
+  max_alerts_per_agent: 10
+  window_minutes: 60
+
+  # When rate limit is hit
+  on_rate_limit_exceeded:
+    action: "summarize"  # summarize, suppress, or throttle
+    summary_interval_minutes: 60
+
+# ============================================================================
+# Alert Formatting
+# ============================================================================
+
+formatting:
+  # Template for alert messages
+  # Available variables: {agent_id}, {agent_version}, {environment},
+  #                      {drift_type}, {metric}, {delta_percent},
+  #                      {severity}, {baseline_value}, {observed_value}
+  message_template: |
+    Behavioral drift detected
+
+    Agent: {agent_id} v{agent_version}
+    Environment: {environment}
+    Metric: {drift_type}.{metric}
+    Change: {baseline_value} → {observed_value} ({delta_percent:+.1f}%)
+    Severity: {severity}
+
+    Detected at: {detected_at}
+    Sample size: {observation_sample_size} runs
+
+  # Include statistical details in alerts
+  include_statistical_details: true
+
+  # Include links to UI
+  include_ui_links: true
+  ui_base_url: "http://localhost:3000"  # Update for production
+
+# ============================================================================
+# Alert Aggregation
+# ============================================================================
+
+aggregation:
+  # Group multiple drift events into single alert
+  enabled: false
+  group_by:
+    - "agent_id"
+    - "environment"
+  window_minutes: 15
+
+  # Aggregated alert format
+  aggregated_message_template: |
+    {count} drift events detected
+
+    Agent: {agent_id}
+    Environment: {environment}
+    Drift events: {count}
+    Severities: {severity_counts}
+
+    Time window: {window_start} to {window_end}
+
+# ============================================================================
+# Escalation Rules
+# ============================================================================
+
+escalation:
+  # Escalate unresolved drift
+  enabled: false
+
+  rules:
+    - name: "High severity escalation"
+      condition:
+        severity: "high"
+        unresolved_for_hours: 4
+      actions:
+        - channel: "pagerduty"
+          escalation_level: "urgent"
+        - channel: "slack"
+          message: "URGENT: High severity drift unresolved for 4+ hours"
+
+    - name: "Multiple drift events"
+      condition:
+        min_drift_count: 5
+        time_window_hours: 1
+      actions:
+        - channel: "slack"
+          message: "Multiple drift events detected ({count} in last hour)"
+
+# ============================================================================
+# Business Hours
+# ============================================================================
+
+business_hours:
+  # Only send certain alerts during business hours
+  enabled: false
+
+  timezone: "America/New_York"
+
+  hours:
+    monday:    { start: "09:00", end: "17:00" }
+    tuesday:   { start: "09:00", end: "17:00" }
+    wednesday: { start: "09:00", end: "17:00" }
+    thursday:  { start: "09:00", end: "17:00" }
+    friday:    { start: "09:00", end: "17:00" }
+    saturday:  null  # No business hours
+    sunday:    null  # No business hours
+
+  # What to do with alerts outside business hours
+  outside_business_hours:
+    action: "queue"  # queue, suppress, or send_anyway
+    queue_send_at: "next_business_hour"  # next_business_hour or next_business_day
+
+# ============================================================================
+# Testing & Development
+# ============================================================================
+
+testing:
+  # Enable test mode (logs alerts without actually sending)
+  test_mode: false
+
+  # Send test alert on startup
+  send_test_alert_on_startup: false
+
+  # Test alert destinations
+  test_channels:
+    - "log"
+
+# ============================================================================
+# Observability (Meta-observability for the alert system itself)
+# ============================================================================
+
+observability:
+  # Track alert delivery metrics
+  enable_metrics: true
+
+  # Log failed alert deliveries
+  log_failures: true
+
+  # Retry failed alerts
+  retry_failures: true
+  max_retries: 3
+  retry_delay_seconds: 60
+
+# ============================================================================
+# Environment Variables Reference
+# ============================================================================
+
+# The following environment variables can be referenced in this config:
+#   SLACK_WEBHOOK_URL           - Slack incoming webhook URL
+#   PAGERDUTY_INTEGRATION_KEY   - PagerDuty integration key
+#   CUSTOM_WEBHOOK_URL          - Custom webhook endpoint
+#   WEBHOOK_TOKEN               - Authorization token for webhooks
+#   ALERT_CONFIG_PATH           - Path to this configuration file
+
+# Example .env file:
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+# PAGERDUTY_INTEGRATION_KEY=your_pagerduty_key
+# ALERT_CONFIG_PATH=/app/config/alert_config.yaml

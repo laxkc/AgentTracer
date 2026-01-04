@@ -60,16 +60,21 @@ def create_test_data_for_drift(db, agent_id, agent_version, environment):
     print(f"Creating new test data for {agent_id} v{agent_version} ({environment})...")
 
     # Create 30 new runs with different decision patterns
+    # Use very recent timestamps so drift detection can find them
     new_runs = []
     for i in range(30):
+        # Create runs in the last 30 minutes
+        started = datetime.utcnow() - timedelta(minutes=30 - i)
+        ended = started + timedelta(seconds=10)
+
         run = AgentRunDB(
             run_id=uuid4(),
             agent_id=agent_id,
             agent_version=agent_version,
             environment=environment,
             status="success",
-            started_at=datetime.utcnow() - timedelta(hours=1),
-            ended_at=datetime.utcnow(),
+            started_at=started,
+            ended_at=ended,
         )
         db.add(run)
         db.flush()
@@ -100,7 +105,7 @@ def create_test_data_for_drift(db, agent_id, agent_version, environment):
                 selected="api",
                 reason_code="fresh_data_required",
                 confidence=0.9,
-                recorded_at=run.started_at,
+                recorded_at=started,
             )
         else:  # 15% cache
             decision = AgentDecisionDB(
@@ -111,32 +116,32 @@ def create_test_data_for_drift(db, agent_id, agent_version, environment):
                 selected="cache",
                 reason_code="cache_hit",
                 confidence=0.8,
-                recorded_at=run.started_at,
+                recorded_at=started,
             )
         db.add(decision)
 
         # Add quality signals with different distribution
-        # Original: full_match=70%, partial_match=30%
-        # New: full_match=50%, partial_match=50% (drift!)
-        if i < 15:  # 50% full_match
+        # Original: 70% success, 30% failure
+        # New: 50% success, 50% failure (drift!)
+        if i < 15:  # 50% success
             signal = AgentQualitySignalDB(
                 signal_id=uuid4(),
                 run_id=run.run_id,
                 step_id=step.step_id,
-                signal_type="schema_valid",
-                signal_value="full_match",
-                signal_metadata={},
-                recorded_at=run.started_at,
+                signal_type="schema_validation",
+                signal_code="valid",
+                value=True,
+                weight=1.0,
             )
-        else:  # 50% partial_match
+        else:  # 50% failure
             signal = AgentQualitySignalDB(
                 signal_id=uuid4(),
                 run_id=run.run_id,
                 step_id=step.step_id,
-                signal_type="schema_valid",
-                signal_value="partial_match",
-                signal_metadata={},
-                recorded_at=run.started_at,
+                signal_type="schema_validation",
+                signal_code="invalid",
+                value=False,
+                weight=1.0,
             )
         db.add(signal)
 
@@ -323,10 +328,10 @@ def test_phase3_workflow():
         print_section("Step 6: Test Alert Emission")
 
         if drift_events:
-            alert_emitter = AlertEmitter(db)
+            alert_emitter = AlertEmitter()
 
             for drift in drift_events[:3]:  # Test first 3 drift events
-                alert_emitter.emit_drift_alert(drift)
+                alert_emitter.emit(drift)
 
             print(f"✓ Emitted {min(3, len(drift_events))} drift alerts")
             print(f"  - Check application logs for alert details")
