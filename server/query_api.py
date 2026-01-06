@@ -1,7 +1,7 @@
 """
 AgentTracer Platform - Query API
 
-This module implements the read-only query API for Phase-1.
+This module implements the read-only query API for agent telemetry.
 
 Design Principles:
 1. Read-only operations (no mutations)
@@ -26,8 +26,8 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
-from backend.database import engine, get_db
-from backend.models import (
+from server.database import engine, get_db
+from server.models import (
     AgentDecisionDB,
     AgentDecisionResponse,
     AgentFailureDB,
@@ -41,20 +41,18 @@ from backend.models import (
     Base,
 )
 
-# Import Phase 3 router
-from backend.query_phase3 import router as phase3_router
+# Import drift detection router
+from server.query_drift import router as drift_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============================================================================
 # FastAPI Application
-# ============================================================================
 
 app = FastAPI(
     title="AgentTracer Platform - Query API",
-    description="Phase-1 read-only API for querying agent telemetry",
+    description="Read-only API for querying agent telemetry",
     version="0.1.0",
 )
 
@@ -67,13 +65,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Phase 3 router
-app.include_router(phase3_router)
+# Include drift detection router
+app.include_router(drift_router)
 
 
-# ============================================================================
 # Response Models
-# ============================================================================
 
 
 class RunListResponse(BaseModel):
@@ -102,9 +98,7 @@ class StatsResponse(BaseModel):
         from_attributes = True
 
 
-# ============================================================================
 # API Endpoints
-# ============================================================================
 
 
 @app.get(
@@ -326,6 +320,104 @@ async def get_run_failures(
         )
 
 
+def _calculate_run_statistics(runs_query, db) -> tuple:
+    """
+    Calculate total runs, failures, and success rate.
+
+    Args:
+        runs_query: SQLAlchemy query for filtered runs
+        db: Database session
+
+    Returns:
+        Tuple of (total_runs, total_failures, success_rate)
+    """
+    total_runs = runs_query.count()
+    total_failures = runs_query.filter(AgentRunDB.status == "failure").count()
+    success_rate = (
+        ((total_runs - total_failures) / total_runs * 100) if total_runs > 0 else 0.0
+    )
+    return total_runs, total_failures, success_rate
+
+
+def _calculate_average_latency(run_ids: List, db: Session) -> float:
+    """
+    Calculate average latency from steps.
+
+    Args:
+        run_ids: List of run IDs to calculate latency for
+        db: Database session
+
+    Returns:
+        Average latency in milliseconds
+    """
+    if not run_ids:
+        return 0.0
+
+    avg_latency_result = (
+        db.query(func.avg(AgentStepDB.latency_ms))
+        .filter(AgentStepDB.run_id.in_(run_ids))
+        .scalar()
+    )
+    return float(avg_latency_result) if avg_latency_result else 0.0
+
+
+def _calculate_failure_breakdown(run_ids: List, db: Session) -> dict:
+    """
+    Calculate failure breakdown by type and code.
+
+    Args:
+        run_ids: List of run IDs to analyze
+        db: Database session
+
+    Returns:
+        Dict mapping "failure_type/failure_code" to count
+    """
+    failures = (
+        db.query(
+            AgentFailureDB.failure_type,
+            AgentFailureDB.failure_code,
+            func.count(AgentFailureDB.failure_id).label("count"),
+        )
+        .filter(AgentFailureDB.run_id.in_(run_ids) if run_ids else False)
+        .group_by(AgentFailureDB.failure_type, AgentFailureDB.failure_code)
+        .all()
+    )
+
+    failure_breakdown = {}
+    for failure_type, failure_code, count in failures:
+        key = f"{failure_type}/{failure_code}"
+        failure_breakdown[key] = count
+
+    return failure_breakdown
+
+
+def _calculate_step_breakdown(run_ids: List, db: Session) -> dict:
+    """
+    Calculate step type breakdown.
+
+    Args:
+        run_ids: List of run IDs to analyze
+        db: Database session
+
+    Returns:
+        Dict mapping step_type to count
+    """
+    steps = (
+        db.query(
+            AgentStepDB.step_type, func.count(AgentStepDB.step_id).label("count")
+        )
+        .filter(AgentStepDB.run_id.in_(run_ids) if run_ids else False)
+        .group_by(AgentStepDB.step_type)
+        .all()
+    )
+
+    step_type_breakdown = {}
+    for step_type, count in steps:
+        step_type_breakdown[step_type] = count
+
+    return step_type_breakdown
+
+
 @app.get(
     "/v1/stats",
     summary="Get aggregated statistics",
@@ -377,58 +469,13 @@ async def get_stats(
         if end_time:
             runs_query = runs_query.filter(AgentRunDB.started_at <= end_time)
 
-        # Total runs
-        total_runs = runs_query.count()
+        # Calculate statistics
+        total_runs, total_failures, success_rate = _calculate_run_statistics(runs_query, db)
 
-        # Total failures
-        total_failures = runs_query.filter(AgentRunDB.status == "failure").count()
-
-        # Success rate
-        success_rate = (
-            ((total_runs - total_failures) / total_runs * 100) if total_runs > 0 else 0.0
-        )
-
-        # Average latency (calculated from steps)
         run_ids = [run.run_id for run in runs_query.all()]
-        avg_latency = 0.0
-        if run_ids:
-            avg_latency_result = (
-                db.query(func.avg(AgentStepDB.latency_ms))
-                .filter(AgentStepDB.run_id.in_(run_ids))
-                .scalar()
-            )
-            avg_latency = float(avg_latency_result) if avg_latency_result else 0.0
-
-        # Failure breakdown
-        failure_breakdown = {}
-        failures = (
-            db.query(
-                AgentFailureDB.failure_type,
-                AgentFailureDB.failure_code,
-                func.count(AgentFailureDB.failure_id).label("count"),
-            )
-            .filter(AgentFailureDB.run_id.in_(run_ids) if run_ids else False)
-            .group_by(AgentFailureDB.failure_type, AgentFailureDB.failure_code)
-            .all()
-        )
-
-        for failure_type, failure_code, count in failures:
-            key = f"{failure_type}/{failure_code}"
-            failure_breakdown[key] = count
-
-        # Step type breakdown
-        step_type_breakdown = {}
-        steps = (
-            db.query(
-                AgentStepDB.step_type, func.count(AgentStepDB.step_id).label("count")
-            )
-            .filter(AgentStepDB.run_id.in_(run_ids) if run_ids else False)
-            .group_by(AgentStepDB.step_type)
-            .all()
-        )
-
-        for step_type, count in steps:
-            step_type_breakdown[step_type] = count
+        avg_latency = _calculate_average_latency(run_ids, db)
+        failure_breakdown = _calculate_failure_breakdown(run_ids, db)
+        step_type_breakdown = _calculate_step_breakdown(run_ids, db)
 
         return {
             "total_runs": total_runs,
@@ -469,9 +516,7 @@ async def health_check(db: Session = Depends(get_db)):
         )
 
 
-# ============================================================================
 # Startup Event
-# ============================================================================
 
 
 @app.on_event("startup")

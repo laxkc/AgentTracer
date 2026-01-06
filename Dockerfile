@@ -1,27 +1,31 @@
 # AgentTracer Platform - Dockerfile
-# Multi-stage build for optimized production image
+# Multi-stage build with uv for fast dependency management
 
 FROM python:3.10-slim as base
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and uv
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Copy requirements
-COPY requirements.txt .
+# Add uv to PATH
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy pyproject.toml for dependency installation
+COPY pyproject.toml ./
+
+# Install Python dependencies using uv
+RUN uv pip install --system -e .
 
 # Copy application code
-COPY backend ./backend
+COPY server ./server
 COPY sdk ./sdk
-COPY db ./db
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
@@ -31,4 +35,4 @@ USER appuser
 EXPOSE 8000 8001
 
 # Default command (will be overridden by docker-compose)
-CMD ["uvicorn", "backend.ingest_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server.ingest_api:app", "--host", "0.0.0.0", "--port", "8000"]

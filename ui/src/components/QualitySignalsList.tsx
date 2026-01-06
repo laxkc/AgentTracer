@@ -1,10 +1,10 @@
 /**
  * QualitySignalsList Component
  *
- * Displays Phase 2 quality signals - atomic, observable indicators correlated with outcomes.
+ * Displays quality signals - atomic, observable indicators correlated with outcomes.
  * Shows signal types, codes, values, and contextual metadata.
  *
- * Design Principles (Phase 2):
+ * Design Principles:
  * - Neutral, observational language ("observed", "correlated with")
  * - No quality scores or correctness judgments
  * - Factual presentation only
@@ -42,7 +42,7 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
           No quality signals recorded for this run
         </p>
         <p className="text-gray-400 text-sm text-center">
-          Phase 2 signal tracking was not enabled or no signals were observed
+          Signal tracking was not enabled or no signals were observed
         </p>
       </div>
     );
@@ -139,7 +139,6 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
       <div className="space-y-6">
         {Object.entries(groupedSignals).map(([type, typeSignals]) => (
           <div key={type} className="border border-gray-200 rounded-lg p-4">
-            {/* Type Header */}
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
               <span className={`p-1.5 rounded ${getSignalTypeColor(type)}`}>
                 {getSignalIcon(type)}
@@ -150,7 +149,6 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
               </span>
             </div>
 
-            {/* Signals of this type */}
             <div className="space-y-2">
               {typeSignals.map((signal) => (
                 <div
@@ -171,7 +169,6 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
                     )}
                   </div>
 
-                  {/* Metadata */}
                   {Object.keys(signal.metadata).length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {Object.entries(signal.metadata).map(([key, value]) => (
@@ -192,7 +189,6 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
         ))}
       </div>
 
-      {/* Summary Stats */}
       <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="text-center">
           <p className="text-2xl font-bold text-gray-900">{Object.keys(groupedSignals).length}</p>
@@ -216,10 +212,9 @@ const QualitySignalsList: React.FC<QualitySignalsListProps> = ({ signals }) => {
         </div>
       </div>
 
-      {/* Footer Note */}
       <div className="mt-4 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 italic">
-          Phase 2 Observability: Quality signals are atomic, factual indicators correlated with agent
+          Observability: Quality signals are atomic, factual indicators correlated with agent
           outcomes. They do not represent quality scores or judgments of correctness.
         </p>
       </div>

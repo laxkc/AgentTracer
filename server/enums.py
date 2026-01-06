@@ -1,7 +1,7 @@
 """
-Phase 2 Enum Definitions for AgentTracer Platform
+Enum Definitions for AgentTracer Platform
 
-This module defines all enums for Phase 2:
+This module defines all enums for decision and quality signal tracking:
 - Decision types and reason codes
 - Signal types and signal codes
 
@@ -12,9 +12,7 @@ from enum import Enum
 from typing import Dict, List
 
 
-# ============================================================================
 # Decision Types
-# ============================================================================
 
 class DecisionType(str, Enum):
     """
@@ -30,9 +28,7 @@ class DecisionType(str, Enum):
     ORCHESTRATION_PATH = "orchestration_path"
 
 
-# ============================================================================
 # Reason Codes (by Decision Type)
-# ============================================================================
 
 class ToolSelectionReason(str, Enum):
     """Reason codes for tool_selection decisions."""
@@ -79,9 +75,7 @@ class OrchestrationPathReason(str, Enum):
     FALLBACK_PATH = "fallback_path"
 
 
-# ============================================================================
 # Decision Reason Code Mapping
-# ============================================================================
 
 DECISION_REASON_CODES: Dict[DecisionType, List[str]] = {
     DecisionType.TOOL_SELECTION: [e.value for e in ToolSelectionReason],
@@ -92,9 +86,7 @@ DECISION_REASON_CODES: Dict[DecisionType, List[str]] = {
 }
 
 
-# ============================================================================
 # Signal Types
-# ============================================================================
 
 class SignalType(str, Enum):
     """
@@ -112,9 +104,7 @@ class SignalType(str, Enum):
     TOKEN_USAGE = "token_usage"
 
 
-# ============================================================================
 # Signal Codes (by Signal Type)
-# ============================================================================
 
 class SchemaValidSignal(str, Enum):
     """Signal codes for schema_valid signal type."""
@@ -169,9 +159,7 @@ class TokenUsageSignal(str, Enum):
     LIMIT_APPROACHED = "limit_approached"
 
 
-# ============================================================================
 # Signal Code Mapping
-# ============================================================================
 
 SIGNAL_CODES: Dict[SignalType, List[str]] = {
     SignalType.SCHEMA_VALID: [e.value for e in SchemaValidSignal],
@@ -184,9 +172,7 @@ SIGNAL_CODES: Dict[SignalType, List[str]] = {
 }
 
 
-# ============================================================================
 # Validation Functions
-# ============================================================================
 
 def validate_decision_type(decision_type: str) -> bool:
     """

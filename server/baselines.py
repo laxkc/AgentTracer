@@ -1,5 +1,5 @@
 """
-Phase 3 - Baseline Manager
+Baseline Manager
 
 This module manages behavioral baselines for drift detection.
 Baselines are immutable snapshots of expected agent behavior.
@@ -19,7 +19,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from backend.models import Base
+from server.models import Base
 
 
 # Database model for behavior_baselines

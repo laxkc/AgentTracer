@@ -15,13 +15,13 @@ import pytest
 from datetime import datetime
 from uuid import uuid4
 
-from backend.models import (
+from server.models import (
     AgentDecisionCreate,
     AgentQualitySignalCreate,
     AgentDecisionResponse,
     AgentQualitySignalResponse,
 )
-from backend.enums import (
+from server.enums import (
     DecisionType,
     SignalType,
     validate_decision_type,

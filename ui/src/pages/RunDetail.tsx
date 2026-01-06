@@ -41,7 +41,6 @@ interface AgentRun {
   created_at: string;
   steps: any[];
   failures: any[];
-  // Phase 2: Optional decision and quality signal data
   decisions?: any[];
   quality_signals?: any[];
 }
@@ -63,9 +62,9 @@ const RunDetail: React.FC = () => {
       setError(null);
       const response = await axios.get(`${QUERY_API_URL}/v1/runs/${runId}`);
       setRun(response.data);
-    } catch (err) {
+    } catch (error) {
       setError('Failed to fetch run details. Please check if the Query API is running.');
-      console.error('Error fetching run:', err);
+      console.error('Error fetching run:', error);
     } finally {
       setLoading(false);
     }
@@ -151,7 +150,6 @@ const RunDetail: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Back Button */}
       <Button
         onClick={() => navigate('/runs')}
         variant="ghost"
@@ -161,7 +159,6 @@ const RunDetail: React.FC = () => {
         Back to Runs
       </Button>
 
-      {/* Run Header */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -177,7 +174,7 @@ const RunDetail: React.FC = () => {
               {((run.decisions && run.decisions.length > 0) ||
                 (run.quality_signals && run.quality_signals.length > 0)) && (
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 border border-purple-300 rounded text-xs font-semibold">
-                  Phase 2 Data
+                  Extended Data
                 </span>
               )}
             </div>
@@ -186,7 +183,6 @@ const RunDetail: React.FC = () => {
           {getStatusIcon(run.status)}
         </div>
 
-        {/* Metadata Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
             <Activity className="w-5 h-5 text-blue-500 mt-0.5" />
@@ -224,7 +220,6 @@ const RunDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Phase 2: Decisions */}
           {run.decisions && run.decisions.length > 0 && (
             <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
               <GitBranch className="w-5 h-5 text-purple-600 mt-0.5" />
@@ -235,7 +230,6 @@ const RunDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Phase 2: Quality Signals */}
           {run.quality_signals && run.quality_signals.length > 0 && (
             <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
               <Zap className="w-5 h-5 text-purple-600 mt-0.5" />
@@ -247,7 +241,6 @@ const RunDetail: React.FC = () => {
           )}
         </div>
 
-        {/* Run ID */}
         <div className="mt-4 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-600">
             <span className="font-medium">Run ID:</span>{' '}
@@ -258,7 +251,6 @@ const RunDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Failure Breakdown (if failures exist) */}
       {run.failures && run.failures.length > 0 && (
         <div className="mb-6">
           <FailureBreakdown
@@ -269,21 +261,18 @@ const RunDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Phase 2: Agent Decisions */}
       {run.decisions && run.decisions.length > 0 && (
         <div className="mb-6">
           <DecisionsList decisions={run.decisions} />
         </div>
       )}
 
-      {/* Phase 2: Quality Signals */}
       {run.quality_signals && run.quality_signals.length > 0 && (
         <div className="mb-6">
           <QualitySignalsList signals={run.quality_signals} />
         </div>
       )}
 
-      {/* Step Timeline */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <TraceTimeline
           steps={run.steps}

@@ -73,7 +73,10 @@ cd testing
 # 2. Set up Python environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+
+# Install dependencies with uv (recommended)
+uv pip install -e ".[dev]"
+# Or using pip: pip install -e ".[dev]"
 
 # 3. Set up environment variables
 cp .env.example .env

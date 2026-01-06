@@ -1,5 +1,5 @@
 """
-Phase 3 - Alert Emitter
+Alert Emitter
 
 This module emits human-readable alerts for detected drift.
 Alerts are informational, non-blocking, and non-judgmental.
@@ -21,7 +21,7 @@ from typing import Optional
 
 import requests
 
-from backend.drift_engine import BehaviorDriftDB
+from server.drift_engine import BehaviorDriftDB
 
 
 # Configure logging
@@ -267,7 +267,7 @@ class AlertEmitter:
             "payload": {
                 "summary": f"Behavioral drift detected: {drift.agent_id} v{drift.agent_version} - {drift.metric}",
                 "severity": pd_severity,
-                "source": "AgentTracer Phase 3",
+                "source": "AgentTracer Drift Detection",
                 "custom_details": {
                     "agent_id": drift.agent_id,
                     "agent_version": drift.agent_version,

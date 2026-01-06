@@ -1,12 +1,12 @@
 -- ============================================================================
--- Phase 2 Migration: Decision and Quality Signal Observability
+-- Decision Quality Tracking Migration
 -- ============================================================================
 --
--- Purpose: Add Phase 2 tables for decision and quality signal tracking
+-- Purpose: Add tables for decision and quality signal tracking
 --
 -- CRITICAL CONSTRAINTS:
--- - This is ADDITIVE ONLY - NO PHASE 1 TABLES MODIFIED
--- - All Phase 1 tables (agent_runs, agent_steps, agent_failures) UNCHANGED
+-- - This is ADDITIVE ONLY - NO CORE TABLES MODIFIED
+-- - All core tables (agent_runs, agent_steps, agent_failures) UNCHANGED
 -- - Privacy-safe: Only structured enums and numeric values stored
 -- - Rollback safe: Can be fully reverted without data loss
 --
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS agent_decisions (
     -- Primary key
     decision_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    -- Foreign keys to Phase 1 tables (CASCADE delete for cleanup)
+    -- Foreign keys to core tables (CASCADE delete for cleanup)
     run_id UUID NOT NULL REFERENCES agent_runs(run_id) ON DELETE CASCADE,
     step_id UUID REFERENCES agent_steps(step_id) ON DELETE CASCADE,
 
@@ -55,7 +55,7 @@ CREATE INDEX idx_agent_decisions_type_reason ON agent_decisions(decision_type, r
 CREATE INDEX idx_agent_decisions_recorded_at ON agent_decisions(recorded_at);
 
 -- Comments for documentation
-COMMENT ON TABLE agent_decisions IS 'Phase 2: Structured decision points made by agents. Additive to Phase 1.';
+COMMENT ON TABLE agent_decisions IS 'Structured decision points made by agents during execution.';
 COMMENT ON COLUMN agent_decisions.decision_type IS 'Type of decision (enum): tool_selection, retrieval_strategy, etc.';
 COMMENT ON COLUMN agent_decisions.reason_code IS 'Structured reason code (enum, not free text)';
 COMMENT ON COLUMN agent_decisions.confidence IS 'Decision confidence value (0.0-1.0)';
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS agent_quality_signals (
     -- Primary key
     signal_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    -- Foreign keys to Phase 1 tables (CASCADE delete for cleanup)
+    -- Foreign keys to core tables (CASCADE delete for cleanup)
     run_id UUID NOT NULL REFERENCES agent_runs(run_id) ON DELETE CASCADE,
     step_id UUID REFERENCES agent_steps(step_id) ON DELETE CASCADE,
 
@@ -98,7 +98,7 @@ CREATE INDEX idx_agent_quality_signals_type_code_value ON agent_quality_signals(
 CREATE INDEX idx_agent_quality_signals_recorded_at ON agent_quality_signals(recorded_at);
 
 -- Comments for documentation
-COMMENT ON TABLE agent_quality_signals IS 'Phase 2: Observable quality signals correlated with outcomes. Additive to Phase 1.';
+COMMENT ON TABLE agent_quality_signals IS 'Observable quality signals correlated with agent execution outcomes.';
 COMMENT ON COLUMN agent_quality_signals.signal_type IS 'Type of signal (enum): schema_valid, empty_retrieval, etc.';
 COMMENT ON COLUMN agent_quality_signals.signal_code IS 'Specific signal code (enum, not free text)';
 COMMENT ON COLUMN agent_quality_signals.value IS 'Signal present (true) or absent (false)';
@@ -123,7 +123,7 @@ BEGIN
     FOR key IN SELECT jsonb_object_keys(NEW.metadata)
     LOOP
         IF LOWER(key) = ANY(blocked_keys) THEN
-            RAISE EXCEPTION 'Privacy violation: metadata key "%" is not allowed. Phase 2 constraint: no prompts, responses, or reasoning text.', key;
+            RAISE EXCEPTION 'Privacy violation: metadata key "%" is not allowed. Privacy constraint: no prompts, responses, or reasoning text.', key;
         END IF;
     END LOOP;
 
@@ -144,7 +144,7 @@ BEGIN
     FOR key IN SELECT jsonb_object_keys(NEW.metadata)
     LOOP
         IF LOWER(key) = ANY(blocked_keys) THEN
-            RAISE EXCEPTION 'Privacy violation: metadata key "%" is not allowed. Phase 2 constraint: no prompts, responses, or reasoning text.', key;
+            RAISE EXCEPTION 'Privacy violation: metadata key "%" is not allowed. Privacy constraint: no prompts, responses, or reasoning text.', key;
         END IF;
     END LOOP;
 
@@ -171,25 +171,25 @@ CREATE TRIGGER enforce_signal_metadata_privacy
 
 
 -- ============================================================================
--- Verification: Ensure Phase 1 Tables Unchanged
+-- Verification: Ensure Core Tables Unchanged
 -- ============================================================================
 
--- This query verifies that Phase 1 tables still exist with expected structure
+-- This query verifies that core tables still exist with expected structure
 DO $$
 DECLARE
     table_count INTEGER;
 BEGIN
-    -- Verify Phase 1 tables exist
+    -- Verify core tables exist
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables
     WHERE table_schema = 'public'
     AND table_name IN ('agent_runs', 'agent_steps', 'agent_failures');
 
     IF table_count != 3 THEN
-        RAISE EXCEPTION 'Phase 1 tables missing or corrupted. Migration aborted.';
+        RAISE EXCEPTION 'Core tables missing or corrupted. Migration aborted.';
     END IF;
 
-    -- Verify critical Phase 1 columns exist
+    -- Verify critical core columns exist
     SELECT COUNT(*) INTO table_count
     FROM information_schema.columns
     WHERE table_schema = 'public'
@@ -200,10 +200,10 @@ BEGIN
     );
 
     IF table_count < 12 THEN
-        RAISE EXCEPTION 'Phase 1 columns missing or corrupted. Migration aborted.';
+        RAISE EXCEPTION 'Core columns missing or corrupted. Migration aborted.';
     END IF;
 
-    RAISE NOTICE 'Phase 1 verification passed: All tables and columns intact.';
+    RAISE NOTICE 'Core verification passed: All tables and columns intact.';
 END $$;
 
 COMMIT;
@@ -240,5 +240,5 @@ ORDER BY tablename;
 -- DROP TABLE IF EXISTS agent_decisions;
 -- COMMIT;
 --
--- This will completely remove Phase 2 additions without affecting Phase 1.
+-- This will completely remove decision quality tracking tables without affecting core tables.
 -- ============================================================================

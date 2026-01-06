@@ -1,7 +1,7 @@
 /**
- * Phase 3 - Baseline Manager (shadcn/ui Edition)
+ * Baseline Manager
  *
- * Professional baseline management interface
+ * Manage behavioral baselines for drift detection
  */
 
 import React, { useState } from 'react';
@@ -16,7 +16,7 @@ import {
   XCircle,
   User,
 } from 'lucide-react';
-import { useBaselines, useProfileDetail, useCreateBaseline, useActivateBaseline, useDeactivateBaseline } from '../hooks/usePhase3';
+import { useBaselines, useProfileDetail, useCreateBaseline, useActivateBaseline, useDeactivateBaseline } from '../hooks/useBaselines';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -43,17 +43,14 @@ import { formatDateTime, formatNumber, capitalize } from '../utils/helpers';
 import { showToast } from '../utils/toast';
 
 const BaselineManager: React.FC = () => {
-  // Filters
   const [environmentFilter, setEnvironmentFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Modals
   const [selectedBaselineId, setSelectedBaselineId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Create form
-  const [createForm, setCreateForm] = useState({
+  const [baselineFormData, setBaselineFormData] = useState({
     agent_id: '',
     agent_version: '',
     environment: 'production',
@@ -66,17 +63,16 @@ const BaselineManager: React.FC = () => {
     auto_activate: false,
   });
 
-  // Data fetching
   const { data: baselines, loading, error, refetch } = useBaselines({ limit: 1000 });
   const createMutation = useCreateBaseline();
   const activateMutation = useActivateBaseline();
   const deactivateMutation = useDeactivateBaseline();
 
-  // Get selected baseline
-  const selectedBaseline = baselines?.find(b => b.baseline_id === selectedBaselineId);
+  const selectedBaseline = baselines?.find(
+    baseline => baseline.baseline_id === selectedBaselineId
+  );
   const { data: selectedProfile } = useProfileDetail(selectedBaseline?.profile_id || null);
 
-  // Filter baselines
   const filteredBaselines = React.useMemo(() => {
     if (!baselines) return [];
     return baselines.filter(baseline => {
@@ -88,25 +84,23 @@ const BaselineManager: React.FC = () => {
     });
   }, [baselines, environmentFilter, typeFilter, statusFilter]);
 
-  // Get stats
   const stats = React.useMemo(() => {
     if (!baselines) return { total: 0, active: 0, agents: 0 };
     return {
       total: baselines.length,
-      active: baselines.filter(b => b.is_active).length,
-      agents: new Set(baselines.map(b => `${b.agent_id}-${b.agent_version}`)).size,
+      active: baselines.filter(baseline => baseline.is_active).length,
+      agents: new Set(baselines.map(baseline => `${baseline.agent_id}-${baseline.agent_version}`)).size,
     };
   }, [baselines]);
 
-  // Get unique values for filters
   const environments = React.useMemo(() => {
     if (!baselines) return [];
-    return Array.from(new Set(baselines.map(b => b.environment)));
+    return Array.from(new Set(baselines.map(baseline => baseline.environment)));
   }, [baselines]);
 
   const types = React.useMemo(() => {
     if (!baselines) return [];
-    return Array.from(new Set(baselines.map(b => b.baseline_type)));
+    return Array.from(new Set(baselines.map(baseline => baseline.baseline_type)));
   }, [baselines]);
 
   const hasActiveFilters = environmentFilter !== 'all' || typeFilter !== 'all' || statusFilter !== 'all';
@@ -118,21 +112,21 @@ const BaselineManager: React.FC = () => {
   };
 
   const handleCreateBaseline = async () => {
-    if (!createForm.agent_id || !createForm.agent_version || !createForm.window_start || !createForm.window_end) {
+    if (!baselineFormData.agent_id || !baselineFormData.agent_version || !baselineFormData.window_start || !baselineFormData.window_end) {
       showToast.error('Please fill in all required fields');
       return;
     }
 
     const result = await createMutation.mutate('/v1/phase3/baselines', {
-      ...createForm,
-      window_start: new Date(createForm.window_start).toISOString(),
-      window_end: new Date(createForm.window_end).toISOString(),
+      ...baselineFormData,
+      window_start: new Date(baselineFormData.window_start).toISOString(),
+      window_end: new Date(baselineFormData.window_end).toISOString(),
     });
 
     if (result) {
       showToast.success('Baseline created successfully');
       setShowCreateModal(false);
-      setCreateForm({
+      setBaselineFormData({
         agent_id: '',
         agent_version: '',
         environment: 'production',
@@ -176,7 +170,6 @@ const BaselineManager: React.FC = () => {
     return 'default';
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-7xl">
@@ -194,7 +187,6 @@ const BaselineManager: React.FC = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="container mx-auto p-6 max-w-7xl">
@@ -450,8 +442,8 @@ const BaselineManager: React.FC = () => {
       <CreateBaselineDialog
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        formData={createForm}
-        onFormChange={(field, value) => setCreateForm({ ...createForm, [field]: value })}
+        formData={baselineFormData}
+        onFormChange={(field, value) => setBaselineFormData({ ...baselineFormData, [field]: value })}
         onSubmit={handleCreateBaseline}
         isLoading={createMutation.loading}
       />

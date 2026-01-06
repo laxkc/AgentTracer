@@ -1,13 +1,7 @@
 /**
- * Phase 3 - Drift Comparison Page
+ * Drift Comparison Page
  *
- * Compare multiple drift events or baselines side-by-side.
- * Helps identify patterns and relationships between drift events.
- *
- * Design Constraints:
- * - Observational language only
- * - No quality judgments
- * - Drift is descriptive, not evaluative
+ * Compare multiple drift events side-by-side to identify patterns and relationships
  */
 
 import React, { useEffect, useState } from "react";
@@ -60,7 +54,7 @@ const DriftComparison: React.FC = () => {
 
   useEffect(() => {
     if (selectedDrifts.length > 0) {
-      const selected = driftEvents.filter((d) => selectedDrifts.includes(d.drift_id));
+      const selected = driftEvents.filter((drift) => selectedDrifts.includes(drift.drift_id));
       setComparisonData(selected);
     } else {
       setComparisonData([]);
@@ -73,18 +67,17 @@ const DriftComparison: React.FC = () => {
       setError(null);
 
       const response = await fetch("http://localhost:8001/v1/phase3/drift?limit=1000");
-      const data = await response.json();
+      const fetchedDrifts = await response.json();
 
-      // Sort by detected_at descending
-      data.sort(
+      fetchedDrifts.sort(
         (a: BehaviorDrift, b: BehaviorDrift) =>
           new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()
       );
 
-      setDriftEvents(data);
+      setDriftEvents(fetchedDrifts);
       setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch drift events");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to fetch drift events");
       setLoading(false);
     }
   };
@@ -134,7 +127,6 @@ const DriftComparison: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* Page Header - SINGLE INSTANCE */}
       <div className="space-y-1">
         <Link
           to="/behaviors"
@@ -155,7 +147,6 @@ const DriftComparison: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Drift Selection Panel */}
         <div className="lg:col-span-1">
           <Card className="sticky top-4">
             <CardHeader>
@@ -225,7 +216,6 @@ const DriftComparison: React.FC = () => {
           </Card>
         </div>
 
-        {/* Comparison View */}
         <div className="lg:col-span-2">
           {comparisonData.length === 0 ? (
             <Card className="p-12 text-center">
@@ -328,7 +318,6 @@ const DriftComparison: React.FC = () => {
         </div>
       </div>
 
-      {/* Info Note */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-6">
           <p className="text-sm text-blue-800">

@@ -1,18 +1,18 @@
 """
 AgentTracer Platform - Core Data Models
 
-This module implements data models for both Phase 1 and Phase 2:
+This module implements data models for comprehensive agent observability:
 
-Phase 1 (Execution Observability):
+Execution Observability:
 - AgentRun: Represents a single agent execution
 - AgentStep: Ordered step within a run with latency tracking
 - AgentFailure: Semantic failure classification
 
-Phase 2 (Decision & Quality Observability - ADDITIVE ONLY):
+Decision & Quality Observability:
 - AgentDecision: Structured decision points
 - AgentQualitySignal: Observable quality indicators
 
-Privacy constraints (both phases):
+Privacy constraints:
 - NO raw prompts or LLM responses
 - NO chain-of-thought storage
 - NO PII
@@ -41,24 +41,18 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-# ============================================================================
-# Type Definitions (Phase-1 Enums)
-# ============================================================================
+# Type Definitions
 
 StepType = Literal["plan", "retrieve", "tool", "respond", "other"]
 RunStatus = Literal["success", "failure", "partial"]
 FailureType = Literal["tool", "model", "retrieval", "orchestration"]
 
-# ============================================================================
 # SQLAlchemy Base
-# ============================================================================
 
 Base = declarative_base()
 
 
-# ============================================================================
 # SQLAlchemy ORM Models (Database Layer)
-# ============================================================================
 
 
 class AgentRunDB(Base):
@@ -86,7 +80,7 @@ class AgentRunDB(Base):
     failures = relationship(
         "AgentFailureDB", back_populates="run", cascade="all, delete-orphan"
     )
-    # Phase 2: Optional decision and quality signal relationships
+    # Optional decision and quality signal relationships
     decisions = relationship(
         "AgentDecisionDB", back_populates="run", cascade="all, delete-orphan"
     )
@@ -109,7 +103,7 @@ class AgentStepDB(Base):
     Database model for agent_steps table.
 
     Represents an ordered step within an agent run.
-    Each retry is a separate step span (critical for Phase-1).
+    Each retry is a separate step span for accurate latency tracking.
     """
 
     __tablename__ = "agent_steps"
@@ -149,7 +143,7 @@ class AgentFailureDB(Base):
     """
     Database model for agent_failures table.
 
-    Semantic failure classification using Phase-1 taxonomy.
+    Semantic failure classification with structured taxonomy.
     """
 
     __tablename__ = "agent_failures"
@@ -186,17 +180,15 @@ class AgentFailureDB(Base):
     )
 
 
-# ============================================================================
-# Phase 2 SQLAlchemy ORM Models (ADDITIVE ONLY - NO PHASE 1 CHANGES)
-# ============================================================================
+# Decision & Quality Signal ORM Models
 
 
 class AgentDecisionDB(Base):
     """
-    Database model for agent_decisions table (Phase 2).
+    Database model for agent_decisions table.
 
     Represents a structured decision point made by an agent.
-    This is ADDITIVE to Phase 1 - NO PHASE 1 TABLES MODIFIED.
+    This is additive to the core execution tracking - no existing tables modified.
 
     Privacy guarantee: Only structured enums and numeric values stored.
     """
@@ -245,10 +237,10 @@ class AgentDecisionDB(Base):
 
 class AgentQualitySignalDB(Base):
     """
-    Database model for agent_quality_signals table (Phase 2).
+    Database model for agent_quality_signals table.
 
     Represents an atomic quality signal correlated with outcomes.
-    This is ADDITIVE to Phase 1 - NO PHASE 1 TABLES MODIFIED.
+    This is additive to the core execution tracking - no existing tables modified.
 
     Privacy guarantee: Only structured enums, booleans, and numeric values stored.
     """
@@ -294,16 +286,14 @@ class AgentQualitySignalDB(Base):
     )
 
 
-# ============================================================================
 # Pydantic Models (API Layer - Validation & Serialization)
-# ============================================================================
 
 
 class AgentStepCreate(BaseModel):
     """
     Schema for creating an agent step (ingest API).
 
-    Enforces Phase-1 constraints:
+    Enforces privacy constraints:
     - No prompt or response content
     - Safe metadata only
     """
@@ -335,7 +325,7 @@ class AgentStepCreate(BaseModel):
             if key.lower() in forbidden_keys:
                 raise ValueError(
                     f"Metadata key '{key}' may contain sensitive data. "
-                    f"Phase-1 only allows safe metadata (tool names, codes, counts)."
+                    f"Only safe metadata allowed (tool names, codes, counts)."
                 )
         return v
 
@@ -375,19 +365,17 @@ class AgentFailureCreate(BaseModel):
             if pattern in lower_msg:
                 raise ValueError(
                     f"Failure message may contain sensitive data ('{pattern}'). "
-                    f"Phase-1 requires privacy-safe messages only."
+                    f"Privacy-safe messages required."
                 )
         return v
 
 
-# ============================================================================
-# Phase 2 Pydantic Models - MUST BE BEFORE AgentRunCreate
-# ============================================================================
+# Decision & Quality Signal Pydantic Models
 
 
 class AgentDecisionCreate(BaseModel):
     """
-    Schema for creating an agent decision (Phase 2 ingest API).
+    Schema for creating an agent decision (ingest API).
 
     Enforces strict validation:
     - decision_type must be valid enum
@@ -409,10 +397,10 @@ class AgentDecisionCreate(BaseModel):
     @classmethod
     def validate_decision_type_enum(cls, v: str) -> str:
         """Validate decision_type is a valid enum value."""
-        from backend.enums import validate_decision_type
+        from server.enums import validate_decision_type
 
         if not validate_decision_type(v):
-            from backend.enums import DecisionType
+            from server.enums import DecisionType
             valid_types = [dt.value for dt in DecisionType]
             raise ValueError(
                 f"Invalid decision_type: '{v}'. "
@@ -424,7 +412,7 @@ class AgentDecisionCreate(BaseModel):
     @classmethod
     def validate_reason_code_for_type(cls, v: str, info) -> str:
         """Validate reason_code is valid for the decision_type."""
-        from backend.enums import validate_reason_code, get_valid_reason_codes
+        from server.enums import validate_reason_code, get_valid_reason_codes
 
         if "decision_type" in info.data:
             decision_type = info.data["decision_type"]
@@ -457,7 +445,7 @@ class AgentDecisionCreate(BaseModel):
             if key.lower() in BLOCKED_KEYS:
                 raise ValueError(
                     f"Metadata key '{key}' may contain sensitive data and is not allowed. "
-                    f"Phase 2 privacy constraint: no prompts, responses, or reasoning text."
+                    f"Privacy constraint: no prompts, responses, or reasoning text."
                 )
 
             # Check value types (primitives only)
@@ -471,7 +459,7 @@ class AgentDecisionCreate(BaseModel):
             if isinstance(value, str) and len(value) > 100:
                 raise ValueError(
                     f"Metadata string '{key}' exceeds 100 characters. "
-                    f"Phase 2 privacy constraint: structured metadata only, no long text."
+                    f"Privacy constraint: structured metadata only, no long text."
                 )
 
         return v
@@ -479,7 +467,7 @@ class AgentDecisionCreate(BaseModel):
 
 class AgentQualitySignalCreate(BaseModel):
     """
-    Schema for creating a quality signal (Phase 2 ingest API).
+    Schema for creating a quality signal (ingest API).
 
     Enforces strict validation:
     - signal_type must be valid enum
@@ -501,10 +489,10 @@ class AgentQualitySignalCreate(BaseModel):
     @classmethod
     def validate_signal_type_enum(cls, v: str) -> str:
         """Validate signal_type is a valid enum value."""
-        from backend.enums import validate_signal_type
+        from server.enums import validate_signal_type
 
         if not validate_signal_type(v):
-            from backend.enums import SignalType
+            from server.enums import SignalType
             valid_types = [st.value for st in SignalType]
             raise ValueError(
                 f"Invalid signal_type: '{v}'. "
@@ -516,7 +504,7 @@ class AgentQualitySignalCreate(BaseModel):
     @classmethod
     def validate_signal_code_for_type(cls, v: str, info) -> str:
         """Validate signal_code is valid for the signal_type."""
-        from backend.enums import validate_signal_code, get_valid_signal_codes
+        from server.enums import validate_signal_code, get_valid_signal_codes
 
         if "signal_type" in info.data:
             signal_type = info.data["signal_type"]
@@ -549,7 +537,7 @@ class AgentQualitySignalCreate(BaseModel):
             if key.lower() in BLOCKED_KEYS:
                 raise ValueError(
                     f"Metadata key '{key}' may contain sensitive data and is not allowed. "
-                    f"Phase 2 privacy constraint: no prompts, responses, or reasoning text."
+                    f"Privacy constraint: no prompts, responses, or reasoning text."
                 )
 
             # Check value types (primitives only)
@@ -563,7 +551,7 @@ class AgentQualitySignalCreate(BaseModel):
             if isinstance(value, str) and len(value) > 100:
                 raise ValueError(
                     f"Metadata string '{key}' exceeds 100 characters. "
-                    f"Phase 2 privacy constraint: structured metadata only, no long text."
+                    f"Privacy constraint: structured metadata only, no long text."
                 )
 
         return v
@@ -573,8 +561,7 @@ class AgentRunCreate(BaseModel):
     """
     Schema for creating an agent run (ingest API).
 
-    Complete run with steps and optional failure (Phase 1).
-    Phase 2 adds optional decisions and quality signals.
+    Complete run with steps, optional failure, decisions, and quality signals.
     Enforces privacy and structural constraints.
     """
 
@@ -589,7 +576,7 @@ class AgentRunCreate(BaseModel):
     steps: List[AgentStepCreate] = Field(default_factory=list)
     failure: Optional[AgentFailureCreate] = None
 
-    # Phase 2: Optional decision and quality signal tracking
+    # Optional decision and quality signal tracking
     decisions: Optional[List[AgentDecisionCreate]] = Field(default_factory=list)
     quality_signals: Optional[List[AgentQualitySignalCreate]] = Field(default_factory=list)
 
@@ -599,7 +586,7 @@ class AgentRunCreate(BaseModel):
         """
         Ensure steps are properly sequenced (0, 1, 2, ...).
 
-        This is critical for Phase-1 timeline reconstruction.
+        This is critical for timeline reconstruction.
         """
         if not v:
             return v
@@ -629,14 +616,14 @@ class AgentRunCreate(BaseModel):
         """
         Ensure failed runs have a failure object.
 
-        Phase-1 requires explicit failure classification.
+        Explicit failure classification required for all failed runs.
         """
         if "status" in info.data:
             status = info.data["status"]
             if status == "failure" and v is None:
                 raise ValueError(
                     "Runs with status='failure' must include a failure object "
-                    "for semantic classification (Phase-1 requirement)"
+                    "for semantic classification"
                 )
         return v
 
@@ -690,7 +677,7 @@ class AgentRunResponse(BaseModel):
     steps: List[AgentStepResponse] = []
     failures: List[AgentFailureResponse] = []
 
-    # Phase 2: Optional decision and quality signal data
+    # Optional decision and quality signal data
     decisions: List["AgentDecisionResponse"] = []
     quality_signals: List["AgentQualitySignalResponse"] = []
 
@@ -698,9 +685,7 @@ class AgentRunResponse(BaseModel):
         from_attributes = True
 
 
-# ============================================================================
-# Phase 2 Pydantic Models (ADDITIVE ONLY - NO PHASE 1 CHANGES)
-# ============================================================================
+# Decision & Quality Signal Response Models
 
 class AgentDecisionResponse(BaseModel):
     """Schema for returning decision data (query API)"""

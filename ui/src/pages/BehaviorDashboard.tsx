@@ -1,7 +1,7 @@
 /**
- * Phase 3 - Behavior Dashboard (shadcn/ui Edition)
+ * Behavior Dashboard
  *
- * Professional observability dashboard for agent behavioral stability
+ * Observability dashboard for agent behavioral stability and drift detection
  */
 
 import React, { useMemo, useState } from 'react';
@@ -18,7 +18,7 @@ import {
   Search,
   Users,
 } from 'lucide-react';
-import { useDrift, useDriftSummary, useBaselines } from '../hooks/usePhase3';
+import { useDrift, useDriftSummary, useBaselines } from '../hooks/useBaselines';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
@@ -60,13 +60,11 @@ interface AgentRow {
 }
 
 const BehaviorDashboard: React.FC = () => {
-  // State
   const [environmentFilter, setEnvironmentFilter] = useState<string>('all');
   const [showOnlyDrift, setShowOnlyDrift] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Data fetching
   const { data: baselines, loading: loadingBaselines, error: baselinesError, refetch: refetchBaselines } = useBaselines({ limit: 1000 });
   const { data: driftEvents, loading: loadingDrift, error: driftError, refetch: refetchDrift } = useDrift({ resolved: false, limit: 1000 });
   const { data: summary, loading: loadingSummary, refetch: refetchSummary } = useDriftSummary(7);
@@ -74,7 +72,6 @@ const BehaviorDashboard: React.FC = () => {
   const loading = loadingBaselines || loadingDrift || loadingSummary;
   const error = baselinesError || driftError;
 
-  // Process data
   const agentRows: AgentRow[] = useMemo(() => {
     if (!baselines && !driftEvents) return [];
     const agentMap = new Map<string, AgentRow>();
@@ -127,7 +124,6 @@ const BehaviorDashboard: React.FC = () => {
     return Array.from(agentMap.values());
   }, [baselines, driftEvents]);
 
-  // Filtering
   const filteredRows = useMemo(() => {
     return agentRows.filter((row) => {
       if (environmentFilter !== 'all' && row.environment !== environmentFilter) return false;
@@ -141,7 +137,7 @@ const BehaviorDashboard: React.FC = () => {
     });
   }, [agentRows, environmentFilter, showOnlyDrift, searchQuery, severityFilter]);
 
-  const environments = useMemo(() => Array.from(new Set(agentRows.map((r) => r.environment))), [agentRows]);
+  const environments = useMemo(() => Array.from(new Set(agentRows.map((row) => row.environment))), [agentRows]);
   const hasActiveFilters = searchQuery || environmentFilter !== 'all' || severityFilter !== 'all' || showOnlyDrift;
 
   const clearFilters = () => {
@@ -167,7 +163,6 @@ const BehaviorDashboard: React.FC = () => {
     return 'secondary';
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-7xl">
@@ -185,7 +180,6 @@ const BehaviorDashboard: React.FC = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="container mx-auto p-6 max-w-7xl">
@@ -290,7 +284,7 @@ const BehaviorDashboard: React.FC = () => {
                 <Input
                   placeholder="Search agent ID or version..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -300,7 +294,7 @@ const BehaviorDashboard: React.FC = () => {
               <label className="text-sm font-medium mb-2 block">Environment</label>
               <select
                 value={environmentFilter}
-                onChange={(e) => setEnvironmentFilter(e.target.value)}
+                onChange={(event) => setEnvironmentFilter(event.target.value)}
                 className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <option value="all">All Environments</option>
@@ -314,7 +308,7 @@ const BehaviorDashboard: React.FC = () => {
               <label className="text-sm font-medium mb-2 block">Severity</label>
               <select
                 value={severityFilter}
-                onChange={(e) => setSeverityFilter(e.target.value)}
+                onChange={(event) => setSeverityFilter(event.target.value)}
                 className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <option value="all">All Severities</option>
@@ -329,7 +323,7 @@ const BehaviorDashboard: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={showOnlyDrift}
-                  onChange={(e) => setShowOnlyDrift(e.target.checked)}
+                  onChange={(event) => setShowOnlyDrift(event.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-sm">Only with drift</span>

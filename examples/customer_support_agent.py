@@ -10,7 +10,7 @@ The agent:
 3. Calls external APIs for additional data
 4. Generates responses
 
-All steps are captured with full observability, following Phase-1 constraints.
+All steps are captured with full observability and privacy-safe tracking.
 """
 
 import random
@@ -24,7 +24,7 @@ class CustomerSupportAgent:
     """
     A customer support agent with built-in observability.
 
-    This agent demonstrates Phase-1 telemetry integration:
+    This agent demonstrates telemetry integration:
     - All steps are tracked with timing
     - Retries are captured as separate spans
     - Failures are semantically classified
@@ -53,9 +53,7 @@ class CustomerSupportAgent:
         Returns:
             str: Generated response
         """
-        # Start a new agent run
         with self.tracer.start_run() as run:
-            # Step 1: Analyze query
             with run.step("plan", "analyze_query") as step:
                 query_analysis = self._analyze_query(query)
                 step.add_metadata(
@@ -65,13 +63,11 @@ class CustomerSupportAgent:
                     }
                 )
 
-            # Step 2: Retrieve knowledge base articles
             with run.step("retrieve", "search_knowledge_base") as step:
                 kb_results = self._search_knowledge_base(query_analysis)
                 step.add_metadata({"result_count": len(kb_results), "search_method": "semantic"})
 
-            # Step 3: Call external API with retry logic
-            # Each retry is a separate step span (Phase-1 requirement)
+            # Call external API with retry logic (each retry tracked separately)
             api_data = None
             max_retries = 3
 
@@ -99,7 +95,6 @@ class CustomerSupportAgent:
 
                         time.sleep(0.5 * (attempt + 1))  # Exponential backoff
 
-            # Step 4: Generate response
             with run.step("respond", "generate_response") as step:
                 response = self._generate_response(query_analysis, kb_results, api_data)
                 step.add_metadata(
@@ -170,7 +165,7 @@ class CustomerSupportAgent:
         """
         Generate customer response.
 
-        NOTE: We do NOT store the actual response content (Phase-1 privacy).
+        NOTE: We do NOT store the actual response content (privacy guarantee).
         Only metadata like response_length is captured.
         """
         time.sleep(0.15)  # Simulate generation time

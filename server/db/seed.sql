@@ -1,7 +1,7 @@
 -- AgentTracer Platform - Seed Data
 --
 -- This file contains sample data for development and testing.
--- It demonstrates the Phase-1 data model with privacy-safe examples.
+-- It demonstrates the core data model with privacy-safe examples.
 
 -- ============================================================================
 -- Sample Agent Run 1: Successful customer support query
@@ -148,7 +148,7 @@ SELECT
     NULL as environments
 FROM agent_failures;
 
--- Note: This seed data demonstrates Phase-1 privacy constraints:
+-- Note: This seed data demonstrates privacy constraints:
 -- ✅ No prompts or responses stored
 -- ✅ Only safe metadata (codes, counts, types)
 -- ✅ Retry modeling (each retry is a separate step)

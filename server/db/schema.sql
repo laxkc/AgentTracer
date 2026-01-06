@@ -1,4 +1,4 @@
--- AgentTracer Platform — Phase 1 Database Schema
+-- AgentTracer Platform — Core Database Schema
 --
 -- Design Principles:
 -- 1. Privacy-by-default: NO prompts, responses, or PII
@@ -35,7 +35,7 @@ CREATE INDEX idx_agent_runs_environment ON agent_runs(environment);
 -- ============================================================================
 -- TABLE: agent_steps
 -- Represents ordered steps within an agent run
--- Each retry is a separate step span (critical for Phase-1)
+-- Each retry is a separate step span
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agent_steps (
     step_id UUID PRIMARY KEY,
@@ -69,7 +69,7 @@ CREATE INDEX idx_agent_steps_metadata ON agent_steps USING GIN (metadata);
 
 -- ============================================================================
 -- TABLE: agent_failures
--- Semantic failure classification (Phase-1 taxonomy)
+-- Semantic failure classification
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agent_failures (
     failure_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -98,9 +98,9 @@ CREATE INDEX idx_agent_failures_code ON agent_failures(failure_code);
 -- ============================================================================
 -- COMMENTS (Documentation)
 -- ============================================================================
-COMMENT ON TABLE agent_runs IS 'Phase-1: Captures agent execution runs without prompts or responses';
-COMMENT ON TABLE agent_steps IS 'Phase-1: Ordered steps with latency tracking. Each retry is a separate span.';
-COMMENT ON TABLE agent_failures IS 'Phase-1: Semantic failure classification using mandatory taxonomy';
+COMMENT ON TABLE agent_runs IS ' Captures agent execution runs without prompts or responses';
+COMMENT ON TABLE agent_steps IS ' Ordered steps with latency tracking. Each retry is a separate span.';
+COMMENT ON TABLE agent_failures IS ' Semantic failure classification using mandatory taxonomy';
 
 COMMENT ON COLUMN agent_steps.metadata IS 'Safe metadata only: tool names, HTTP codes, retry counts. NO prompts, responses, or PII.';
 COMMENT ON COLUMN agent_failures.message IS 'Human-readable failure description. Must not contain PII or sensitive data.';

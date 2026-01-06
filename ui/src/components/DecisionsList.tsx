@@ -1,10 +1,10 @@
 /**
  * DecisionsList Component
  *
- * Displays Phase 2 agent decisions in a clear, structured format.
+ * Displays agent decisions in a clear, structured format.
  * Shows decision points, options considered, selection, and reasoning.
  *
- * Design Principles (Phase 2):
+ * Design Principles:
  * - Observational language only ("correlated with", "associated with")
  * - No judgment of correctness
  * - Neutral tone throughout
@@ -42,7 +42,7 @@ const DecisionsList: React.FC<DecisionsListProps> = ({ decisions }) => {
           No decision points recorded for this run
         </p>
         <p className="text-gray-400 text-sm text-center">
-          Phase 2 decision tracking was not enabled or no decisions were made
+          Decision tracking was not enabled or no decisions were made
         </p>
       </div>
     );
@@ -104,7 +104,6 @@ const DecisionsList: React.FC<DecisionsListProps> = ({ decisions }) => {
             key={decision.decision_id}
             className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
           >
-            {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 font-medium text-sm">#{index + 1}</span>
@@ -126,7 +125,6 @@ const DecisionsList: React.FC<DecisionsListProps> = ({ decisions }) => {
               )}
             </div>
 
-            {/* Selection */}
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-4 h-4 text-green-500" />
@@ -139,7 +137,6 @@ const DecisionsList: React.FC<DecisionsListProps> = ({ decisions }) => {
               </div>
             </div>
 
-            {/* Candidates (if present) */}
             {decision.metadata.candidates && decision.metadata.candidates.length > 0 && (
               <div className="mb-3 ml-6">
                 <span className="text-xs font-medium text-gray-500">Options considered:</span>
@@ -160,7 +157,6 @@ const DecisionsList: React.FC<DecisionsListProps> = ({ decisions }) => {
               </div>
             )}
 
-            {/* Additional Metadata */}
             {Object.keys(decision.metadata).filter((key) => key !== 'candidates').length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <span className="text-xs font-medium text-gray-500">Additional context:</span>
@@ -180,10 +176,9 @@ const DecisionsList: React.FC<DecisionsListProps> = ({ decisions }) => {
         ))}
       </div>
 
-      {/* Footer Note */}
       <div className="mt-4 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 italic">
-          Phase 2 Observability: Decision data is observational only and does not reflect correctness or
+          Observability: Decision data is observational only and does not reflect correctness or
           quality judgments. These records describe agent behavior patterns.
         </p>
       </div>

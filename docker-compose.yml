@@ -12,7 +12,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: agent_observability_ingest_api
-    command: uvicorn backend.ingest_api:app --host 0.0.0.0 --port 8000
+    command: uvicorn server.ingest_api:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     environment:
@@ -39,7 +39,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: agent_observability_query_api
-    command: uvicorn backend.query_api:app --host 0.0.0.0 --port 8001
+    command: uvicorn server.query_api:app --host 0.0.0.0 --port 8001
     ports:
       - "8001:8001"
     environment:

@@ -1,5 +1,5 @@
 /**
- * Phase 3 - Drift Timeline Component
+ * Drift Timeline Component
  *
  * Visualizes drift events over time for a specific agent.
  * Shows behavioral changes in a timeline view with charts.
@@ -108,8 +108,8 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
 
       setDriftEvents(filteredData);
       setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch drift data');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch drift data');
       setLoading(false);
     }
   };
@@ -204,7 +204,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Drift Timeline</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -213,14 +212,13 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </p>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Metric</label>
             <Select
               value={selectedMetric}
-              onChange={(e) => setSelectedMetric(e.target.value)}
+              onChange={(event) => setSelectedMetric(event.target.value)}
             >
               <option value="all">All Metrics</option>
               {uniqueMetrics.map((metric) => (
@@ -235,7 +233,7 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">Drift Type</label>
             <Select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
+              onChange={(event) => setSelectedType(event.target.value)}
             >
               <option value="all">All Types</option>
               {uniqueTypes.map((type) => (
@@ -248,7 +246,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </div>
       </div>
 
-      {/* Chart Toggle */}
       <div className="bg-white rounded-lg shadow p-4 border border-gray-200 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-gray-700">Visualization</h3>
@@ -258,7 +255,7 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
           <input
             type="checkbox"
             checked={showChart}
-            onChange={(e) => setShowChart(e.target.checked)}
+            onChange={(event) => setShowChart(event.target.checked)}
             className="sr-only"
           />
           <div className={`relative inline-block w-14 h-8 rounded-full transition-colors ${showChart ? 'bg-indigo-600' : 'bg-gray-300'}`}>
@@ -268,7 +265,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </label>
       </div>
 
-      {/* Chart Visualization */}
       {showChart && chartData.length > 0 && (
         <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Drift Over Time</h3>
@@ -313,7 +309,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </div>
       )}
 
-      {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
           <div className="text-xs font-medium text-gray-600">Total Events</div>
@@ -339,7 +334,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </div>
       </div>
 
-      {/* Timeline List */}
       {!showChart && filteredEvents.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 border border-gray-200 text-center">
           <p className="text-gray-500">No drift events found for the selected filters</p>
@@ -361,7 +355,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
                       key={drift.drift_id}
                       className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 transition-colors"
                     >
-                      {/* Severity Indicator */}
                       <div className="flex-shrink-0 mt-1">
                         <span
                           className={`inline-block px-2 py-1 text-xs font-medium rounded border ${getSeverityColor(
@@ -372,7 +365,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
                         </span>
                       </div>
 
-                      {/* Event Details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
@@ -420,7 +412,6 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
         </div>
       )}
 
-      {/* Info Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           <strong>Interpreting drift:</strong> Events shown here represent detected changes in agent

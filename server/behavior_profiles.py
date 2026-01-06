@@ -1,24 +1,24 @@
 """
-Phase 3 - Behavior Profile Builder
+Behavior Profile Builder
 
-This module builds statistical behavior profiles from Phase 2 data.
+This module builds statistical behavior profiles from decision and quality signal data.
 It aggregates agent_decisions and agent_quality_signals over time windows
 to create behavioral snapshots for baseline creation and drift detection.
 
 Constraints:
-- Read-only with respect to Phase 1 & 2 tables
+- Read-only with respect to core tracking tables
 - No access to prompts, responses, or reasoning
 - Purely observational - no behavior modification
 """
 
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from backend.models import (
+from server.models import (
     AgentDecisionDB,
     AgentQualitySignalDB,
     AgentRunDB,
@@ -33,7 +33,7 @@ class InsufficientDataError(Exception):
 class BehaviorProfile:
     """
     Statistical snapshot of agent behavior over a time window.
-    Built from Phase 2 data (decisions and quality signals).
+    Built from decision and quality signal data.
     """
 
     def __init__(
@@ -65,7 +65,7 @@ class BehaviorProfile:
 
 class BehaviorProfileBuilder:
     """
-    Builds statistical behavior profiles from Phase 2 data.
+    Builds statistical behavior profiles from decision and quality signal data.
 
     Purpose:
     - Aggregate decision distributions from agent_decisions
@@ -95,7 +95,7 @@ class BehaviorProfileBuilder:
         min_sample_size: int = 100,
     ) -> Dict:
         """
-        Build a behavior profile from Phase 2 data.
+        Build a behavior profile from decision and quality signal data.
 
         Args:
             agent_id: Agent identifier
@@ -181,6 +181,70 @@ class BehaviorProfileBuilder:
 
         return count or 0
 
+    def _query_decision_counts(
+        self,
+        agent_id: str,
+        agent_version: str,
+        environment: str,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> List:
+        """
+        Query decision type and selected combinations with counts.
+
+        Args:
+            agent_id: Agent identifier
+            agent_version: Agent version
+            environment: Deployment environment
+            window_start: Start of window
+            window_end: End of window
+
+        Returns:
+            List of (decision_type, selected, count) tuples
+        """
+        return (
+            self.db.query(
+                AgentDecisionDB.decision_type,
+                AgentDecisionDB.selected,
+                func.count(AgentDecisionDB.decision_id).label("count"),
+            )
+            .join(AgentRunDB, AgentDecisionDB.run_id == AgentRunDB.run_id)
+            .filter(
+                and_(
+                    AgentRunDB.agent_id == agent_id,
+                    AgentRunDB.agent_version == agent_version,
+                    AgentRunDB.environment == environment,
+                    AgentRunDB.started_at >= window_start,
+                    AgentRunDB.started_at < window_end,
+                )
+            )
+            .group_by(AgentDecisionDB.decision_type, AgentDecisionDB.selected)
+            .all()
+        )
+
+    def _normalize_distributions(self, distributions: Dict, type_totals: Dict) -> Dict:
+        """
+        Normalize count distributions to probabilities (sum to 1.0).
+
+        Args:
+            distributions: Dict of {type: {selection: count}}
+            type_totals: Dict of {type: total_count}
+
+        Returns:
+            Normalized distributions {type: {selection: probability}}
+        """
+        normalized = {}
+        for decision_type, selections in distributions.items():
+            total = type_totals[decision_type]
+            if total > 0:
+                normalized[decision_type] = {
+                    selected: count / total for selected, count in selections.items()
+                }
+            else:
+                normalized[decision_type] = selections
+
+        return normalized
+
     def _compute_decision_distributions(
         self,
         agent_id: str,
@@ -206,25 +270,9 @@ class BehaviorProfileBuilder:
               "retry_strategy": {"retry": 0.15, "no_retry": 0.85}
             }
         """
-        # Query decision type and selected combinations
-        results = (
-            self.db.query(
-                AgentDecisionDB.decision_type,
-                AgentDecisionDB.selected,
-                func.count(AgentDecisionDB.decision_id).label("count"),
-            )
-            .join(AgentRunDB, AgentDecisionDB.run_id == AgentRunDB.run_id)
-            .filter(
-                and_(
-                    AgentRunDB.agent_id == agent_id,
-                    AgentRunDB.agent_version == agent_version,
-                    AgentRunDB.environment == environment,
-                    AgentRunDB.started_at >= window_start,
-                    AgentRunDB.started_at < window_end,
-                )
-            )
-            .group_by(AgentDecisionDB.decision_type, AgentDecisionDB.selected)
-            .all()
+        # Query decision counts
+        results = self._query_decision_counts(
+            agent_id, agent_version, environment, window_start, window_end
         )
 
         # Build distributions
@@ -239,37 +287,31 @@ class BehaviorProfileBuilder:
             distributions[decision_type][selected] = count
             type_totals[decision_type] += count
 
-        # Normalize to probabilities (sum to 1.0)
-        for decision_type, selections in distributions.items():
-            total = type_totals[decision_type]
-            if total > 0:
-                distributions[decision_type] = {
-                    selected: count / total
-                    for selected, count in selections.items()
-                }
+        # Normalize to probabilities
+        return self._normalize_distributions(distributions, type_totals)
 
-        return distributions
-
-    def _compute_signal_distributions(
+    def _query_signal_counts(
         self,
         agent_id: str,
         agent_version: str,
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> Dict:
+    ) -> List:
         """
-        Aggregate quality signal distributions from agent_quality_signals table.
+        Query signal type and code combinations with counts.
+
+        Args:
+            agent_id: Agent identifier
+            agent_version: Agent version
+            environment: Deployment environment
+            window_start: Start of window
+            window_end: End of window
 
         Returns:
-            Normalized distributions:
-            {
-              "schema_valid": {"full_match": 0.92, "partial_match": 0.06, "no_match": 0.02},
-              "tool_success": {"first_attempt": 0.88, "after_retry": 0.10, "failed": 0.02}
-            }
+            List of (signal_type, signal_code, count) tuples
         """
-        # Query signal type and code combinations
-        results = (
+        return (
             self.db.query(
                 AgentQualitySignalDB.signal_type,
                 AgentQualitySignalDB.signal_code,
@@ -289,6 +331,29 @@ class BehaviorProfileBuilder:
             .all()
         )
 
+    def _compute_signal_distributions(
+        self,
+        agent_id: str,
+        agent_version: str,
+        environment: str,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> Dict:
+        """
+        Aggregate quality signal distributions from agent_quality_signals table.
+
+        Returns:
+            Normalized distributions:
+            {
+              "schema_valid": {"full_match": 0.92, "partial_match": 0.06, "no_match": 0.02},
+              "tool_success": {"first_attempt": 0.88, "after_retry": 0.10, "failed": 0.02}
+            }
+        """
+        # Query signal counts
+        results = self._query_signal_counts(
+            agent_id, agent_version, environment, window_start, window_end
+        )
+
         # Build distributions
         distributions = {}
         type_totals = {}
@@ -301,15 +366,75 @@ class BehaviorProfileBuilder:
             distributions[signal_type][signal_code] = count
             type_totals[signal_type] += count
 
-        # Normalize to probabilities (sum to 1.0)
-        for signal_type, codes in distributions.items():
-            total = type_totals[signal_type]
-            if total > 0:
-                distributions[signal_type] = {
-                    code: count / total for code, count in codes.items()
-                }
+        # Normalize to probabilities
+        return self._normalize_distributions(distributions, type_totals)
 
-        return distributions
+    def _query_run_durations(
+        self,
+        agent_id: str,
+        agent_version: str,
+        environment: str,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> List[float]:
+        """
+        Query all run durations in time window.
+
+        Args:
+            agent_id: Agent identifier
+            agent_version: Agent version
+            environment: Deployment environment
+            window_start: Start of window
+            window_end: End of window
+
+        Returns:
+            List of durations in milliseconds
+        """
+        runs = (
+            self.db.query(
+                func.extract("epoch", AgentRunDB.ended_at - AgentRunDB.started_at).label(
+                    "duration_seconds"
+                )
+            )
+            .filter(
+                and_(
+                    AgentRunDB.agent_id == agent_id,
+                    AgentRunDB.agent_version == agent_version,
+                    AgentRunDB.environment == environment,
+                    AgentRunDB.started_at >= window_start,
+                    AgentRunDB.started_at < window_end,
+                    AgentRunDB.ended_at.isnot(None),  # Only completed runs
+                )
+            )
+            .all()
+        )
+
+        # Extract durations in milliseconds (convert Decimal to float)
+        return [float(d.duration_seconds) * 1000 for d in runs if d.duration_seconds]
+
+    def _calculate_percentiles(self, sorted_durations: List[float]) -> Dict:
+        """
+        Calculate percentile statistics from sorted durations.
+
+        Args:
+            sorted_durations: List of durations sorted in ascending order
+
+        Returns:
+            Dict of percentile statistics
+        """
+        n = len(sorted_durations)
+        mean = sum(sorted_durations) / n
+        p50 = sorted_durations[int(n * 0.50)]
+        p95 = sorted_durations[int(n * 0.95)] if n > 1 else sorted_durations[0]
+        p99 = sorted_durations[int(n * 0.99)] if n > 1 else sorted_durations[0]
+
+        return {
+            "mean_run_duration_ms": round(mean, 2),
+            "p50_run_duration_ms": round(p50, 2),
+            "p95_run_duration_ms": round(p95, 2),
+            "p99_run_duration_ms": round(p99, 2),
+            "sample_count": n,
+        }
 
     def _compute_latency_stats(
         self,
@@ -331,29 +456,10 @@ class BehaviorProfileBuilder:
               "p99_run_duration_ms": 3100.0
             }
         """
-        # Query all run durations in window
-        # Duration = (ended_at - started_at) in milliseconds
-        runs = (
-            self.db.query(
-                func.extract("epoch", AgentRunDB.ended_at - AgentRunDB.started_at).label(
-                    "duration_seconds"
-                )
-            )
-            .filter(
-                and_(
-                    AgentRunDB.agent_id == agent_id,
-                    AgentRunDB.agent_version == agent_version,
-                    AgentRunDB.environment == environment,
-                    AgentRunDB.started_at >= window_start,
-                    AgentRunDB.started_at < window_end,
-                    AgentRunDB.ended_at.isnot(None),  # Only completed runs
-                )
-            )
-            .all()
+        # Query run durations
+        durations_ms = self._query_run_durations(
+            agent_id, agent_version, environment, window_start, window_end
         )
-
-        # Extract durations in milliseconds (convert Decimal to float)
-        durations_ms = [float(d.duration_seconds) * 1000 for d in runs if d.duration_seconds]
 
         if not durations_ms:
             return {
@@ -368,19 +474,7 @@ class BehaviorProfileBuilder:
         durations_ms.sort()
 
         # Calculate statistics
-        n = len(durations_ms)
-        mean = sum(durations_ms) / n
-        p50 = durations_ms[int(n * 0.50)]
-        p95 = durations_ms[int(n * 0.95)] if n > 1 else durations_ms[0]
-        p99 = durations_ms[int(n * 0.99)] if n > 1 else durations_ms[0]
-
-        return {
-            "mean_run_duration_ms": round(mean, 2),
-            "p50_run_duration_ms": round(p50, 2),
-            "p95_run_duration_ms": round(p95, 2),
-            "p99_run_duration_ms": round(p99, 2),
-            "sample_count": n,
-        }
+        return self._calculate_percentiles(durations_ms)
 
     def _validate_sample_size(self, count: int, min_size: int) -> None:
         """

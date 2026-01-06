@@ -19,25 +19,25 @@ export const API_ENDPOINTS = {
   // Health
   HEALTH: '/health',
 
-  // Phase 1 - Agent Runs
+  // Agent Runs
   RUNS: '/v1/runs',
   RUN_DETAIL: (runId: string) => `/v1/runs/${runId}`,
   RUN_STATS: '/v1/stats',
 
-  // Phase 3 - Baselines
-  BASELINES: '/v1/phase3/baselines',
-  BASELINE_DETAIL: (baselineId: string) => `/v1/phase3/baselines/${baselineId}`,
-  BASELINE_ACTIVATE: (baselineId: string) => `/v1/phase3/baselines/${baselineId}/activate`,
-  BASELINE_DEACTIVATE: (baselineId: string) => `/v1/phase3/baselines/${baselineId}/deactivate`,
+  // Behavioral Baselines
+  BASELINES: '/v1/drift/baselines',
+  BASELINE_DETAIL: (baselineId: string) => `/v1/drift/baselines/${baselineId}`,
+  BASELINE_ACTIVATE: (baselineId: string) => `/v1/drift/baselines/${baselineId}/activate`,
+  BASELINE_DEACTIVATE: (baselineId: string) => `/v1/drift/baselines/${baselineId}/deactivate`,
 
-  // Phase 3 - Profiles
-  PROFILES: '/v1/phase3/profiles',
-  PROFILE_DETAIL: (profileId: string) => `/v1/phase3/profiles/${profileId}`,
+  // Behavioral Profiles
+  PROFILES: '/v1/drift/profiles',
+  PROFILE_DETAIL: (profileId: string) => `/v1/drift/profiles/${profileId}`,
 
-  // Phase 3 - Drift
-  DRIFT: '/v1/phase3/drift',
-  DRIFT_DETAIL: (driftId: string) => `/v1/phase3/drift/${driftId}`,
-  DRIFT_RESOLVE: (driftId: string) => `/v1/phase3/drift/${driftId}/resolve`,
-  DRIFT_TIMELINE: '/v1/phase3/drift/timeline',
-  DRIFT_SUMMARY: '/v1/phase3/drift/summary',
+  // Drift Detection
+  DRIFT: '/v1/drift/drift',
+  DRIFT_DETAIL: (driftId: string) => `/v1/drift/drift/${driftId}`,
+  DRIFT_RESOLVE: (driftId: string) => `/v1/drift/drift/${driftId}/resolve`,
+  DRIFT_TIMELINE: '/v1/drift/drift/timeline',
+  DRIFT_SUMMARY: '/v1/drift/drift/summary',
 } as const;

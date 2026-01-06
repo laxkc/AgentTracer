@@ -1,7 +1,7 @@
 """
 AgentTracer Platform - Ingest API
 
-This module implements the write-only ingest API for Phase-1.
+This module implements the write-only ingest API for agent telemetry.
 
 Design Principles:
 1. Idempotent ingestion via run_id
@@ -24,7 +24,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.models import (
+from server.models import (
     AgentDecisionDB,
     AgentFailureDB,
     AgentQualitySignalDB,
@@ -39,13 +39,11 @@ from backend.models import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============================================================================
 # FastAPI Application
-# ============================================================================
 
 app = FastAPI(
     title="AgentTracer Platform - Ingest API",
-    description="Phase-1 write-only API for agent telemetry ingestion",
+    description="Write-only API for agent telemetry ingestion",
     version="0.1.0",
 )
 
@@ -58,9 +56,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================================
 # Database Configuration
-# ============================================================================
 
 # Read DATABASE_URL from environment variable, fallback to localhost for local dev
 import os
@@ -85,12 +81,10 @@ def init_db():
     logger.info("Database tables initialized")
 
 
-# ============================================================================
 # Metrics & Observability
-# ============================================================================
 
-# Simple in-memory metrics (Phase-1)
-# TODO: Replace with Prometheus/StatsD in production
+# Simple in-memory metrics for development
+# In production, replace with Prometheus/StatsD
 metrics = {
     "runs_ingested_total": 0,
     "runs_failed_total": 0,
@@ -104,9 +98,148 @@ def increment_metric(metric_name: str):
         metrics[metric_name] += 1
 
 
-# ============================================================================
+# Helper Functions for Ingest Operations
+
+
+def _check_duplicate_run(db: Session, run_id) -> Optional[AgentRunResponse]:
+    """
+    Check if run already exists and return it if found (idempotency).
+
+    Args:
+        db: Database session
+        run_id: Run identifier to check
+
+    Returns:
+        AgentRunResponse if duplicate found, None otherwise
+    """
+    existing_run = db.query(AgentRunDB).filter(AgentRunDB.run_id == run_id).first()
+    if existing_run:
+        logger.info(f"Duplicate run_id {run_id} - returning existing run")
+        increment_metric("runs_duplicate_total")
+        return AgentRunResponse.model_validate(existing_run)
+    return None
+
+
+def _create_run_record(db: Session, run: AgentRunCreate) -> AgentRunDB:
+    """
+    Create and return the main AgentRun database record.
+
+    Args:
+        db: Database session
+        run: Validated run data from request
+
+    Returns:
+        Created AgentRunDB instance
+    """
+    db_run = AgentRunDB(
+        run_id=run.run_id,
+        agent_id=run.agent_id,
+        agent_version=run.agent_version,
+        environment=run.environment,
+        status=run.status,
+        started_at=run.started_at,
+        ended_at=run.ended_at,
+    )
+    db.add(db_run)
+    db.flush()  # Ensure run_id exists before adding related records
+    return db_run
+
+
+def _create_step_records(db: Session, run: AgentRunCreate) -> None:
+    """
+    Create all step records for the run.
+
+    Args:
+        db: Database session
+        run: Validated run data containing steps
+    """
+    for step in run.steps:
+        db_step = AgentStepDB(
+            step_id=step.step_id,
+            run_id=run.run_id,
+            seq=step.seq,
+            step_type=step.step_type,
+            name=step.name,
+            latency_ms=step.latency_ms,
+            started_at=step.started_at,
+            ended_at=step.ended_at,
+            step_metadata=step.metadata,
+        )
+        db.add(db_step)
+    db.flush()  # Ensure step_ids exist for potential references
+
+
+def _create_failure_record(db: Session, run: AgentRunCreate) -> None:
+    """
+    Create failure record if present in run data.
+
+    Args:
+        db: Database session
+        run: Validated run data potentially containing failure
+    """
+    if run.failure:
+        db_failure = AgentFailureDB(
+            run_id=run.run_id,
+            step_id=run.failure.step_id,
+            failure_type=run.failure.failure_type,
+            failure_code=run.failure.failure_code,
+            message=run.failure.message,
+        )
+        db.add(db_failure)
+
+
+def _create_decision_records(db: Session, run: AgentRunCreate) -> None:
+    """
+    Create decision records if present (optional behavioral tracking).
+
+    Args:
+        db: Database session
+        run: Validated run data potentially containing decisions
+    """
+    if run.decisions:
+        for decision in run.decisions:
+            # Merge candidates into metadata if provided
+            decision_metadata = decision.metadata.copy()
+            if decision.candidates:
+                decision_metadata["candidates"] = decision.candidates
+
+            db_decision = AgentDecisionDB(
+                decision_id=decision.decision_id,
+                run_id=run.run_id,
+                step_id=decision.step_id,
+                decision_type=decision.decision_type,
+                selected=decision.selected,
+                reason_code=decision.reason_code,
+                confidence=decision.confidence,
+                decision_metadata=decision_metadata,
+            )
+            db.add(db_decision)
+
+
+def _create_quality_signal_records(db: Session, run: AgentRunCreate) -> None:
+    """
+    Create quality signal records if present (optional behavioral tracking).
+
+    Args:
+        db: Database session
+        run: Validated run data potentially containing quality signals
+    """
+    if run.quality_signals:
+        for signal in run.quality_signals:
+            db_signal = AgentQualitySignalDB(
+                signal_id=signal.signal_id,
+                run_id=run.run_id,
+                step_id=signal.step_id,
+                signal_type=signal.signal_type,
+                signal_code=signal.signal_code,
+                value=signal.value,
+                weight=signal.weight,
+                signal_metadata=signal.metadata,
+            )
+            db.add(db_signal)
+
+
 # API Endpoints
-# ============================================================================
 
 
 @app.post(
@@ -117,7 +250,7 @@ def increment_metric(metric_name: str):
     description="""
     Ingest a complete agent run with ordered steps and optional failure.
 
-    **Phase-1 Requirements:**
+    **Requirements:**
     - Steps must be sequentially ordered (seq: 0, 1, 2, ...)
     - Failed runs must include a failure object
     - No prompts, responses, or PII allowed in metadata
@@ -135,7 +268,7 @@ async def ingest_run(
     """
     Ingest a complete agent run.
 
-    This endpoint enforces Phase-1 privacy and structural constraints:
+    This endpoint enforces privacy and structural constraints:
     - Validates step sequencing
     - Ensures failure classification for failed runs
     - Rejects sensitive data in metadata
@@ -153,99 +286,23 @@ async def ingest_run(
         HTTPException 500: Database error
     """
     try:
-        # Check for duplicate run_id (idempotency)
-        existing_run = db.query(AgentRunDB).filter(AgentRunDB.run_id == run.run_id).first()
-        if existing_run:
-            logger.info(f"Duplicate run_id {run.run_id} - returning existing run")
-            increment_metric("runs_duplicate_total")
-            return AgentRunResponse.model_validate(existing_run)
+        # Check for duplicate run (idempotency)
+        duplicate_response = _check_duplicate_run(db, run.run_id)
+        if duplicate_response:
+            return duplicate_response
 
-        # Create run record
-        db_run = AgentRunDB(
-            run_id=run.run_id,
-            agent_id=run.agent_id,
-            agent_version=run.agent_version,
-            environment=run.environment,
-            status=run.status,
-            started_at=run.started_at,
-            ended_at=run.ended_at,
-        )
-        db.add(db_run)
-
-        # Flush to ensure run_id exists before adding related records
-        # This is critical for Phase 2 foreign key constraints
-        db.flush()
-
-        # Create step records
-        for step in run.steps:
-            db_step = AgentStepDB(
-                step_id=step.step_id,
-                run_id=run.run_id,
-                seq=step.seq,
-                step_type=step.step_type,
-                name=step.name,
-                latency_ms=step.latency_ms,
-                started_at=step.started_at,
-                ended_at=step.ended_at,
-                step_metadata=step.metadata,
-            )
-            db.add(db_step)
-
-        # Flush to ensure step_ids exist before adding decisions/failures that reference them
-        # This is critical for Phase 2 foreign key constraints on step_id
-        db.flush()
-
-        # Create failure record if present
-        if run.failure:
-            db_failure = AgentFailureDB(
-                run_id=run.run_id,
-                step_id=run.failure.step_id,
-                failure_type=run.failure.failure_type,
-                failure_code=run.failure.failure_code,
-                message=run.failure.message,
-            )
-            db.add(db_failure)
-
-        # Phase 2: Create decision records if present (optional)
-        if run.decisions:
-            for decision in run.decisions:
-                # Merge candidates into metadata if provided
-                decision_metadata = decision.metadata.copy()
-                if decision.candidates:
-                    decision_metadata["candidates"] = decision.candidates
-
-                db_decision = AgentDecisionDB(
-                    decision_id=decision.decision_id,
-                    run_id=run.run_id,
-                    step_id=decision.step_id,
-                    decision_type=decision.decision_type,
-                    selected=decision.selected,
-                    reason_code=decision.reason_code,
-                    confidence=decision.confidence,
-                    decision_metadata=decision_metadata,
-                )
-                db.add(db_decision)
-
-        # Phase 2: Create quality signal records if present (optional)
-        if run.quality_signals:
-            for signal in run.quality_signals:
-                db_signal = AgentQualitySignalDB(
-                    signal_id=signal.signal_id,
-                    run_id=run.run_id,
-                    step_id=signal.step_id,
-                    signal_type=signal.signal_type,
-                    signal_code=signal.signal_code,
-                    value=signal.value,
-                    weight=signal.weight,
-                    signal_metadata=signal.metadata,
-                )
-                db.add(db_signal)
+        # Create run and related records
+        db_run = _create_run_record(db, run)
+        _create_step_records(db, run)
+        _create_failure_record(db, run)
+        _create_decision_records(db, run)
+        _create_quality_signal_records(db, run)
 
         # Commit transaction
         db.commit()
         db.refresh(db_run)
 
-        # Update metrics
+        # Update metrics and log success
         increment_metric("runs_ingested_total")
 
         logger.info(
@@ -306,27 +363,25 @@ async def health_check(db: Session = Depends(get_db)):
 @app.get(
     "/metrics",
     summary="Internal metrics",
-    description="Get internal metrics for observability (Phase-1 simple counters)",
+    description="Get internal metrics for observability",
 )
 async def get_metrics():
     """
     Get internal metrics.
 
-    Phase-1 uses simple in-memory counters.
-    Future: Integrate with Prometheus/StatsD.
+    Uses simple in-memory counters for development.
+    In production, integrate with Prometheus/StatsD.
 
     Returns:
         dict: Metric counters
     """
     return {
         "metrics": metrics,
-        "note": "Phase-1 simple counters - will be replaced with proper metrics in production",
+        "note": "Simple in-memory counters - will be replaced with proper metrics in production",
     }
 
 
-# ============================================================================
 # Startup/Shutdown Events
-# ============================================================================
 
 
 @app.on_event("startup")
@@ -343,9 +398,7 @@ async def shutdown_event():
     logger.info("Shutting down Ingest API...")
 
 
-# ============================================================================
 # Error Handlers
-# ============================================================================
 
 
 @app.exception_handler(HTTPException)

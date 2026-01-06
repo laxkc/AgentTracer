@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from backend.models import AgentRunDB, AgentStepDB, AgentFailureDB
+from server.models import AgentRunDB, AgentStepDB, AgentFailureDB
 from sdk.agenttrace import AgentTracer
 
 # Test configuration

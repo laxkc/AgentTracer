@@ -1,5 +1,5 @@
 """
-Phase 3 - Drift Detection Engine
+Drift Detection Engine
 
 This module detects behavioral drift via statistical comparison.
 Drift is purely observational - it describes change, not quality.
@@ -21,9 +21,9 @@ import os
 from sqlalchemy.orm import Session
 from scipy import stats
 
-from backend.behavior_profiles import BehaviorProfileBuilder, InsufficientDataError
-from backend.baselines import BehaviorBaselineDB
-from backend.models import Base
+from server.behavior_profiles import BehaviorProfileBuilder, InsufficientDataError
+from server.baselines import BehaviorBaselineDB
+from server.models import Base
 
 
 # Database model for behavior_drift
@@ -115,6 +115,121 @@ class DriftDetectionEngine:
         self.db = db
         self.threshold_config = self._load_thresholds(config_path)
 
+    def _build_observed_profile(
+        self,
+        baseline: BehaviorBaselineDB,
+        observed_window_start: datetime,
+        observed_window_end: datetime,
+        min_sample_size: int,
+    ) -> Dict:
+        """
+        Build profile for observed window.
+
+        Args:
+            baseline: Baseline containing agent context
+            observed_window_start: Start of observation window
+            observed_window_end: End of observation window
+            min_sample_size: Minimum runs required
+
+        Returns:
+            Dict containing observed profile data
+
+        Raises:
+            InsufficientDataError: If not enough observed data
+        """
+        profile_builder = BehaviorProfileBuilder(self.db)
+        return profile_builder.build_profile(
+            agent_id=baseline.agent_id,
+            agent_version=baseline.agent_version,
+            environment=baseline.environment,
+            window_start=observed_window_start,
+            window_end=observed_window_end,
+            min_sample_size=min_sample_size,
+        )
+
+    def _load_baseline_profile(self, baseline: BehaviorBaselineDB) -> BehaviorProfileDB:
+        """
+        Load baseline profile from database.
+
+        Args:
+            baseline: Baseline containing profile_id
+
+        Returns:
+            BehaviorProfileDB object
+
+        Raises:
+            ValueError: If profile not found
+        """
+        baseline_profile = (
+            self.db.query(BehaviorProfileDB)
+            .filter(BehaviorProfileDB.profile_id == baseline.profile_id)
+            .first()
+        )
+
+        if not baseline_profile:
+            raise ValueError(f"Baseline profile {baseline.profile_id} not found")
+
+        return baseline_profile
+
+    def _collect_all_drifts(
+        self,
+        baseline: BehaviorBaselineDB,
+        baseline_profile: BehaviorProfileDB,
+        observed_profile: Dict,
+        observed_window_start: datetime,
+        observed_window_end: datetime,
+    ) -> List[BehaviorDriftDB]:
+        """
+        Collect drift records across all dimensions.
+
+        Args:
+            baseline: Baseline to compare against
+            baseline_profile: Baseline profile data
+            observed_profile: Observed profile data
+            observed_window_start: Start of observation window
+            observed_window_end: End of observation window
+
+        Returns:
+            List of all detected drift records
+        """
+        drift_records = []
+        observed_sample_size = observed_profile["sample_size"]
+
+        # Compare decision distributions
+        decision_drifts = self._compare_decision_distributions(
+            baseline=baseline,
+            baseline_profile=baseline_profile,
+            observed_profile=observed_profile,
+            observed_window_start=observed_window_start,
+            observed_window_end=observed_window_end,
+            observed_sample_size=observed_sample_size,
+        )
+        drift_records.extend(decision_drifts)
+
+        # Compare signal distributions
+        signal_drifts = self._compare_signal_distributions(
+            baseline=baseline,
+            baseline_profile=baseline_profile,
+            observed_profile=observed_profile,
+            observed_window_start=observed_window_start,
+            observed_window_end=observed_window_end,
+            observed_sample_size=observed_sample_size,
+        )
+        drift_records.extend(signal_drifts)
+
+        # Compare latency stats
+        latency_drifts = self._compare_latency_stats(
+            baseline=baseline,
+            baseline_profile=baseline_profile,
+            observed_profile=observed_profile,
+            observed_window_start=observed_window_start,
+            observed_window_end=observed_window_end,
+            observed_sample_size=observed_sample_size,
+        )
+        drift_records.extend(latency_drifts)
+
+        return drift_records
+
     def detect_drift(
         self,
         baseline: BehaviorBaselineDB,
@@ -146,67 +261,147 @@ class DriftDetectionEngine:
             InsufficientDataError: If not enough observed data
         """
         # Build observed profile
-        profile_builder = BehaviorProfileBuilder(self.db)
-        observed_profile_data = profile_builder.build_profile(
-            agent_id=baseline.agent_id,
-            agent_version=baseline.agent_version,
-            environment=baseline.environment,
-            window_start=observed_window_start,
-            window_end=observed_window_end,
-            min_sample_size=min_sample_size,
+        observed_profile_data = self._build_observed_profile(
+            baseline, observed_window_start, observed_window_end, min_sample_size
         )
 
         # Load baseline profile
-        baseline_profile = (
-            self.db.query(BehaviorProfileDB)
-            .filter(BehaviorProfileDB.profile_id == baseline.profile_id)
-            .first()
-        )
-
-        if not baseline_profile:
-            raise ValueError(f"Baseline profile {baseline.profile_id} not found")
+        baseline_profile = self._load_baseline_profile(baseline)
 
         # Detect drift across all dimensions
-        drift_records = []
-
-        # Compare decision distributions
-        decision_drifts = self._compare_decision_distributions(
-            baseline=baseline,
-            baseline_profile=baseline_profile,
-            observed_profile=observed_profile_data,
-            observed_window_start=observed_window_start,
-            observed_window_end=observed_window_end,
-            observed_sample_size=observed_profile_data["sample_size"],
+        drift_records = self._collect_all_drifts(
+            baseline,
+            baseline_profile,
+            observed_profile_data,
+            observed_window_start,
+            observed_window_end,
         )
-        drift_records.extend(decision_drifts)
-
-        # Compare signal distributions
-        signal_drifts = self._compare_signal_distributions(
-            baseline=baseline,
-            baseline_profile=baseline_profile,
-            observed_profile=observed_profile_data,
-            observed_window_start=observed_window_start,
-            observed_window_end=observed_window_end,
-            observed_sample_size=observed_profile_data["sample_size"],
-        )
-        drift_records.extend(signal_drifts)
-
-        # Compare latency stats
-        latency_drifts = self._compare_latency_stats(
-            baseline=baseline,
-            baseline_profile=baseline_profile,
-            observed_profile=observed_profile_data,
-            observed_window_start=observed_window_start,
-            observed_window_end=observed_window_end,
-            observed_sample_size=observed_profile_data["sample_size"],
-        )
-        drift_records.extend(latency_drifts)
 
         # Persist drift records
         for drift in drift_records:
             self.db.add(drift)
 
         self.db.commit()
+
+        return drift_records
+
+    def _create_drift_record(
+        self,
+        baseline: BehaviorBaselineDB,
+        drift_type: str,
+        metric: str,
+        baseline_value: float,
+        observed_value: float,
+        delta: float,
+        delta_percent: float,
+        p_value: float,
+        test_method: str,
+        severity: str,
+        observed_window_start: datetime,
+        observed_window_end: datetime,
+        observed_sample_size: int,
+    ) -> BehaviorDriftDB:
+        """
+        Create a drift record with all required fields.
+
+        Args:
+            baseline: Baseline being compared against
+            drift_type: Type of drift (decision, signal, latency)
+            metric: Specific metric name
+            baseline_value: Baseline metric value
+            observed_value: Observed metric value
+            delta: Absolute change
+            delta_percent: Percent change
+            p_value: Statistical significance
+            test_method: Statistical test used
+            severity: Drift severity (low, medium, high)
+            observed_window_start: Start of observation window
+            observed_window_end: End of observation window
+            observed_sample_size: Number of samples observed
+
+        Returns:
+            BehaviorDriftDB record
+        """
+        return BehaviorDriftDB(
+            baseline_id=baseline.baseline_id,
+            agent_id=baseline.agent_id,
+            agent_version=baseline.agent_version,
+            environment=baseline.environment,
+            drift_type=drift_type,
+            metric=metric,
+            baseline_value=baseline_value,
+            observed_value=observed_value,
+            delta=delta,
+            delta_percent=delta_percent,
+            significance=p_value,
+            test_method=test_method,
+            severity=severity,
+            detected_at=datetime.utcnow(),
+            observation_window_start=observed_window_start,
+            observation_window_end=observed_window_end,
+            observation_sample_size=observed_sample_size,
+        )
+
+    def _check_option_drift(
+        self,
+        baseline: BehaviorBaselineDB,
+        decision_type: str,
+        baseline_dist: Dict,
+        observed_dist: Dict,
+        p_value: float,
+        test_method: str,
+        observed_window_start: datetime,
+        observed_window_end: datetime,
+        observed_sample_size: int,
+    ) -> List[BehaviorDriftDB]:
+        """
+        Check each option in a decision type for drift.
+
+        Args:
+            baseline: Baseline being compared
+            decision_type: Type of decision
+            baseline_dist: Baseline distribution
+            observed_dist: Observed distribution
+            p_value: Statistical test p-value
+            test_method: Statistical test method
+            observed_window_start: Start of observation window
+            observed_window_end: End of observation window
+            observed_sample_size: Sample size
+
+        Returns:
+            List of drift records for significant changes
+        """
+        drift_records = []
+        all_options = set(baseline_dist.keys()) | set(observed_dist.keys())
+
+        for option in all_options:
+            baseline_value = baseline_dist.get(option, 0.0)
+            observed_value = observed_dist.get(option, 0.0)
+
+            delta = observed_value - baseline_value
+            delta_percent = (delta / baseline_value * 100) if baseline_value > 0 else 0.0
+
+            # Check if significant
+            if self._is_significant(p_value, abs(delta_percent), "decision"):
+                metric = f"{decision_type}.{option}"
+                severity = self._calculate_severity(abs(delta_percent), "decision")
+
+                drift = self._create_drift_record(
+                    baseline=baseline,
+                    drift_type="decision",
+                    metric=metric,
+                    baseline_value=baseline_value,
+                    observed_value=observed_value,
+                    delta=delta,
+                    delta_percent=delta_percent,
+                    p_value=p_value,
+                    test_method=test_method,
+                    severity=severity,
+                    observed_window_start=observed_window_start,
+                    observed_window_end=observed_window_end,
+                    observed_sample_size=observed_sample_size,
+                )
+                drift_records.append(drift)
 
         return drift_records
 
@@ -244,40 +439,81 @@ class DriftDetectionEngine:
             p_value, test_method = self._run_chi_square_test(baseline_dist, observed_dist)
 
             # Check each selection option for drift
-            all_options = set(baseline_dist.keys()) | set(observed_dist.keys())
+            option_drifts = self._check_option_drift(
+                baseline=baseline,
+                decision_type=decision_type,
+                baseline_dist=baseline_dist,
+                observed_dist=observed_dist,
+                p_value=p_value,
+                test_method=test_method,
+                observed_window_start=observed_window_start,
+                observed_window_end=observed_window_end,
+                observed_sample_size=observed_sample_size,
+            )
+            drift_records.extend(option_drifts)
 
-            for option in all_options:
-                baseline_value = baseline_dist.get(option, 0.0)
-                observed_value = observed_dist.get(option, 0.0)
+        return drift_records
 
-                delta = observed_value - baseline_value
-                delta_percent = (delta / baseline_value * 100) if baseline_value > 0 else 0.0
+    def _check_signal_code_drift(
+        self,
+        baseline: BehaviorBaselineDB,
+        signal_type: str,
+        baseline_dist: Dict,
+        observed_dist: Dict,
+        p_value: float,
+        test_method: str,
+        observed_window_start: datetime,
+        observed_window_end: datetime,
+        observed_sample_size: int,
+    ) -> List[BehaviorDriftDB]:
+        """
+        Check each signal code for drift.
 
-                # Check if significant
-                if self._is_significant(p_value, abs(delta_percent), "decision"):
-                    metric = f"{decision_type}.{option}"
-                    severity = self._calculate_severity(abs(delta_percent), "decision")
+        Args:
+            baseline: Baseline being compared
+            signal_type: Type of signal
+            baseline_dist: Baseline distribution
+            observed_dist: Observed distribution
+            p_value: Statistical test p-value
+            test_method: Statistical test method
+            observed_window_start: Start of observation window
+            observed_window_end: End of observation window
+            observed_sample_size: Sample size
 
-                    drift = BehaviorDriftDB(
-                        baseline_id=baseline.baseline_id,
-                        agent_id=baseline.agent_id,
-                        agent_version=baseline.agent_version,
-                        environment=baseline.environment,
-                        drift_type="decision",
-                        metric=metric,
-                        baseline_value=baseline_value,
-                        observed_value=observed_value,
-                        delta=delta,
-                        delta_percent=delta_percent,
-                        significance=p_value,
-                        test_method=test_method,
-                        severity=severity,
-                        detected_at=datetime.utcnow(),
-                        observation_window_start=observed_window_start,
-                        observation_window_end=observed_window_end,
-                        observation_sample_size=observed_sample_size,
-                    )
-                    drift_records.append(drift)
+        Returns:
+            List of drift records for significant changes
+        """
+        drift_records = []
+        all_codes = set(baseline_dist.keys()) | set(observed_dist.keys())
+
+        for code in all_codes:
+            baseline_value = baseline_dist.get(code, 0.0)
+            observed_value = observed_dist.get(code, 0.0)
+
+            delta = observed_value - baseline_value
+            delta_percent = (delta / baseline_value * 100) if baseline_value > 0 else 0.0
+
+            # Check if significant
+            if self._is_significant(p_value, abs(delta_percent), "signal"):
+                metric = f"{signal_type}.{code}"
+                severity = self._calculate_severity(abs(delta_percent), "signal")
+
+                drift = self._create_drift_record(
+                    baseline=baseline,
+                    drift_type="signal",
+                    metric=metric,
+                    baseline_value=baseline_value,
+                    observed_value=observed_value,
+                    delta=delta,
+                    delta_percent=delta_percent,
+                    p_value=p_value,
+                    test_method=test_method,
+                    severity=severity,
+                    observed_window_start=observed_window_start,
+                    observed_window_end=observed_window_end,
+                    observed_sample_size=observed_sample_size,
+                )
+                drift_records.append(drift)
 
         return drift_records
 
@@ -315,42 +551,74 @@ class DriftDetectionEngine:
             p_value, test_method = self._run_chi_square_test(baseline_dist, observed_dist)
 
             # Check each signal code for drift
-            all_codes = set(baseline_dist.keys()) | set(observed_dist.keys())
-
-            for code in all_codes:
-                baseline_value = baseline_dist.get(code, 0.0)
-                observed_value = observed_dist.get(code, 0.0)
-
-                delta = observed_value - baseline_value
-                delta_percent = (delta / baseline_value * 100) if baseline_value > 0 else 0.0
-
-                # Check if significant
-                if self._is_significant(p_value, abs(delta_percent), "signal"):
-                    metric = f"{signal_type}.{code}"
-                    severity = self._calculate_severity(abs(delta_percent), "signal")
-
-                    drift = BehaviorDriftDB(
-                        baseline_id=baseline.baseline_id,
-                        agent_id=baseline.agent_id,
-                        agent_version=baseline.agent_version,
-                        environment=baseline.environment,
-                        drift_type="signal",
-                        metric=metric,
-                        baseline_value=baseline_value,
-                        observed_value=observed_value,
-                        delta=delta,
-                        delta_percent=delta_percent,
-                        significance=p_value,
-                        test_method=test_method,
-                        severity=severity,
-                        detected_at=datetime.utcnow(),
-                        observation_window_start=observed_window_start,
-                        observation_window_end=observed_window_end,
-                        observation_sample_size=observed_sample_size,
-                    )
-                    drift_records.append(drift)
+            code_drifts = self._check_signal_code_drift(
+                baseline=baseline,
+                signal_type=signal_type,
+                baseline_dist=baseline_dist,
+                observed_dist=observed_dist,
+                p_value=p_value,
+                test_method=test_method,
+                observed_window_start=observed_window_start,
+                observed_window_end=observed_window_end,
+                observed_sample_size=observed_sample_size,
+            )
+            drift_records.extend(code_drifts)
 
         return drift_records
+
+    def _check_latency_metric_drift(
+        self,
+        baseline: BehaviorBaselineDB,
+        metric: str,
+        baseline_value: float,
+        observed_value: float,
+        observed_window_start: datetime,
+        observed_window_end: datetime,
+        observed_sample_size: int,
+    ) -> Optional[BehaviorDriftDB]:
+        """
+        Check a single latency metric for drift.
+
+        Args:
+            baseline: Baseline being compared
+            metric: Metric name
+            baseline_value: Baseline metric value
+            observed_value: Observed metric value
+            observed_window_start: Start of observation window
+            observed_window_end: End of observation window
+            observed_sample_size: Sample size
+
+        Returns:
+            Drift record if significant, None otherwise
+        """
+        # Skip if either is zero
+        if baseline_value == 0 or observed_value == 0:
+            return None
+
+        delta = observed_value - baseline_value
+        delta_percent = (delta / baseline_value * 100)
+
+        # Use percent threshold (no statistical test for latency)
+        if self._is_significant(1.0, abs(delta_percent), "latency"):
+            severity = self._calculate_severity(abs(delta_percent), "latency")
+
+            return self._create_drift_record(
+                baseline=baseline,
+                drift_type="latency",
+                metric=metric,
+                baseline_value=baseline_value,
+                observed_value=observed_value,
+                delta=delta,
+                delta_percent=delta_percent,
+                p_value=1.0,  # No p-value for percent threshold
+                test_method="percent_threshold",
+                severity=severity,
+                observed_window_start=observed_window_start,
+                observed_window_end=observed_window_end,
+                observed_sample_size=observed_sample_size,
+            )
+
+        return None
 
     def _compare_latency_stats(
         self,
@@ -378,36 +646,17 @@ class DriftDetectionEngine:
             baseline_value = baseline_stats.get(metric, 0.0)
             observed_value = observed_stats.get(metric, 0.0)
 
-            # Skip if either is zero
-            if baseline_value == 0 or observed_value == 0:
-                continue
+            drift = self._check_latency_metric_drift(
+                baseline=baseline,
+                metric=metric,
+                baseline_value=baseline_value,
+                observed_value=observed_value,
+                observed_window_start=observed_window_start,
+                observed_window_end=observed_window_end,
+                observed_sample_size=observed_sample_size,
+            )
 
-            delta = observed_value - baseline_value
-            delta_percent = (delta / baseline_value * 100)
-
-            # Use percent threshold (no statistical test for latency)
-            if self._is_significant(1.0, abs(delta_percent), "latency"):
-                severity = self._calculate_severity(abs(delta_percent), "latency")
-
-                drift = BehaviorDriftDB(
-                    baseline_id=baseline.baseline_id,
-                    agent_id=baseline.agent_id,
-                    agent_version=baseline.agent_version,
-                    environment=baseline.environment,
-                    drift_type="latency",
-                    metric=metric,
-                    baseline_value=baseline_value,
-                    observed_value=observed_value,
-                    delta=delta,
-                    delta_percent=delta_percent,
-                    significance=1.0,  # No p-value for percent threshold
-                    test_method="percent_threshold",
-                    severity=severity,
-                    detected_at=datetime.utcnow(),
-                    observation_window_start=observed_window_start,
-                    observation_window_end=observed_window_end,
-                    observation_sample_size=observed_sample_size,
-                )
+            if drift:
                 drift_records.append(drift)
 
         return drift_records
@@ -441,7 +690,7 @@ class DriftDetectionEngine:
 
         # Run Chi-square test
         try:
-            chi2_stat, p_value = stats.chisquare(
+            _, p_value = stats.chisquare(
                 f_obs=observed_counts, f_exp=baseline_counts
             )
             return (p_value, "chi_square")
@@ -477,7 +726,7 @@ class DriftDetectionEngine:
 
         return True
 
-    def _calculate_severity(self, delta_percent: float, drift_type: str) -> str:
+    def _calculate_severity(self, delta_percent: float, _drift_type: str = None) -> str:
         """
         Calculate severity based purely on magnitude of change.
 
@@ -485,7 +734,7 @@ class DriftDetectionEngine:
 
         Args:
             delta_percent: Absolute percent change
-            drift_type: Type of drift
+            _drift_type: Type of drift (unused, reserved for future use)
 
         Returns:
             "low", "medium", or "high"

@@ -1,7 +1,7 @@
 /**
- * Phase 3 - Profile Builder Page
+ * Profile Builder
  *
- * Build behavior profiles from Phase 2 data before creating baselines.
+ * Build behavior profiles from observability data before creating baselines.
  * Allows preview of profile data before baseline creation.
  *
  * Design Constraints:
@@ -96,8 +96,8 @@ const ProfileBuilder: React.FC = () => {
         setProfile(profileData);
         toast.success("Profile built successfully!");
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to build profile");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to build profile");
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,6 @@ const ProfileBuilder: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* Page Header - SINGLE INSTANCE */}
       <div className="space-y-1">
         <Link
           to="/baselines"
@@ -127,12 +126,11 @@ const ProfileBuilder: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Profile Builder</h1>
         </div>
         <p className="text-gray-500">
-          Build behavior profiles from Phase 2 data before creating baselines
+          Build behavior profiles from observability data before creating baselines
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form Card */}
         <Card>
           <CardHeader>
             <CardTitle>Build Profile</CardTitle>
@@ -145,7 +143,7 @@ const ProfileBuilder: React.FC = () => {
               <Input
                 type="text"
                 value={formData.agent_id}
-                onChange={(e) => setFormData({ ...formData, agent_id: e.target.value })}
+                onChange={(event) => setFormData({ ...formData, agent_id: event.target.value })}
                 placeholder="e.g., support-agent"
               />
             </div>
@@ -157,7 +155,7 @@ const ProfileBuilder: React.FC = () => {
               <Input
                 type="text"
                 value={formData.agent_version}
-                onChange={(e) => setFormData({ ...formData, agent_version: e.target.value })}
+                onChange={(event) => setFormData({ ...formData, agent_version: event.target.value })}
                 placeholder="e.g., v1.0.0"
               />
             </div>
@@ -168,7 +166,7 @@ const ProfileBuilder: React.FC = () => {
               </label>
               <Select
                 value={formData.environment}
-                onChange={(e) => setFormData({ ...formData, environment: e.target.value })}
+                onChange={(event) => setFormData({ ...formData, environment: event.target.value })}
               >
                 <option value="production">production</option>
                 <option value="staging">staging</option>
@@ -184,7 +182,7 @@ const ProfileBuilder: React.FC = () => {
                 <Input
                   type="datetime-local"
                   value={formData.window_start}
-                  onChange={(e) => setFormData({ ...formData, window_start: e.target.value })}
+                  onChange={(event) => setFormData({ ...formData, window_start: event.target.value })}
                 />
               </div>
 
@@ -195,7 +193,7 @@ const ProfileBuilder: React.FC = () => {
                 <Input
                   type="datetime-local"
                   value={formData.window_end}
-                  onChange={(e) => setFormData({ ...formData, window_end: e.target.value })}
+                  onChange={(event) => setFormData({ ...formData, window_end: event.target.value })}
                 />
               </div>
             </div>
@@ -205,8 +203,8 @@ const ProfileBuilder: React.FC = () => {
               <Input
                 type="number"
                 value={formData.min_sample_size}
-                onChange={(e) =>
-                  setFormData({ ...formData, min_sample_size: parseInt(e.target.value) || 100 })
+                onChange={(event) =>
+                  setFormData({ ...formData, min_sample_size: parseInt(event.target.value) || 100 })
                 }
                 min="1"
               />
@@ -221,7 +219,6 @@ const ProfileBuilder: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Profile Preview Card */}
         <Card>
           <CardHeader>
             <CardTitle>Profile Preview</CardTitle>
@@ -229,7 +226,6 @@ const ProfileBuilder: React.FC = () => {
           <CardContent>
             {profile ? (
               <div className="space-y-4">
-                {/* Success Banner */}
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
@@ -244,7 +240,6 @@ const ProfileBuilder: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Time Window */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Clock className="h-4 w-4" />
@@ -259,7 +254,6 @@ const ProfileBuilder: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Decision Distributions */}
                 {Object.keys(profile.decision_distributions).length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -285,7 +279,6 @@ const ProfileBuilder: React.FC = () => {
                   </div>
                 )}
 
-                {/* Signal Distributions */}
                 {Object.keys(profile.signal_distributions).length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -309,7 +302,6 @@ const ProfileBuilder: React.FC = () => {
                   </div>
                 )}
 
-                {/* Latency Statistics */}
                 {Object.keys(profile.latency_stats).length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -343,12 +335,11 @@ const ProfileBuilder: React.FC = () => {
         </Card>
       </div>
 
-      {/* Info Note */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-6">
           <p className="text-sm text-blue-800">
             <strong>About profiles:</strong> Behavior profiles are statistical snapshots of agent
-            behavior over a time window. They aggregate Phase 2 data (decisions and quality
+            behavior over a time window. They aggregate observability data (decisions and quality
             signals) into distributions and statistics. Profiles are used to create baselines for
             drift detection.
           </p>

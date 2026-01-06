@@ -1,7 +1,7 @@
 """
-Phase 3 - Query API
+Drift Detection Query API
 
-Read-only API for Phase 3 data (profiles, baselines, drift records).
+Read-only API for drift detection data (profiles, baselines, drift records).
 All endpoints are GET-only - no mutations.
 
 Constraints:
@@ -10,7 +10,7 @@ Constraints:
 - Observational semantics only
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -19,14 +19,12 @@ from pydantic import BaseModel
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
-from backend.baselines import BehaviorBaselineDB
-from backend.database import get_db
-from backend.drift_engine import BehaviorDriftDB, BehaviorProfileDB
+from server.baselines import BehaviorBaselineDB
+from server.database import get_db
+from server.drift_engine import BehaviorDriftDB, BehaviorProfileDB
 
 
-# ============================================================================
 # Response Models (Pydantic)
-# ============================================================================
 
 class BehaviorProfileResponse(BaseModel):
     """Response model for behavior profiles."""
@@ -115,14 +113,11 @@ class DriftTimelineResponse(BaseModel):
 
 # ============================================================================
 # Router
-# ============================================================================
 
-router = APIRouter(prefix="/v1/phase3", tags=["Phase 3 - Drift Detection"])
+router = APIRouter(prefix="/v1/drift", tags=["Drift Detection"])
 
 
-# ============================================================================
 # Behavior Profile Endpoints
-# ============================================================================
 
 @router.get("/profiles", response_model=List[BehaviorProfileResponse])
 async def list_profiles(
@@ -367,7 +362,7 @@ async def drift_summary(
     """
     from datetime import timedelta
 
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     query = db.query(BehaviorDriftDB).filter(BehaviorDriftDB.detected_at >= cutoff_date)
 
@@ -442,7 +437,7 @@ async def resolve_drift(
     if drift.resolved_at:
         raise HTTPException(status_code=400, detail="Drift event is already resolved")
 
-    drift.resolved_at = datetime.utcnow()
+    drift.resolved_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(drift)
 

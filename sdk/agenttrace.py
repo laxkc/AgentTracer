@@ -3,15 +3,15 @@ AgentTracer Platform - Python SDK
 
 This module provides the client-side SDK for capturing agent telemetry.
 
-Design Principles (Phase 1 & 2):
+Design Principles:
 1. Lightweight and non-blocking
 2. Privacy-by-default (no prompts, responses, or PII)
 3. Fail-safe (never crash the agent)
 4. Context manager support for automatic timing
 5. Async batched delivery
-6. Phase 2: Optional decision and quality signal tracking
+6. Optional decision and quality signal tracking
 
-Usage Example (Phase 1):
+Basic Usage:
     ```python
     from sdk.agenttrace import AgentTracer
 
@@ -32,7 +32,7 @@ Usage Example (Phase 1):
             # Your retrieval logic
             step.add_metadata({"query_type": "semantic", "result_count": 10})
 
-        # Capture retries as separate spans (Phase-1 requirement)
+        # Capture retries as separate spans
         for attempt in range(3):
             with run.step("tool", "call_external_api") as step:
                 step.add_metadata({"attempt": attempt + 1})
@@ -48,14 +48,14 @@ Usage Example (Phase 1):
                         )
     ```
 
-Usage Example (Phase 2 - Optional):
+Advanced Usage (Optional Decision & Quality Signal Tracking):
     ```python
     with tracer.start_run() as run:
         with run.step("plan", "choose_tool") as step:
             # Your decision logic
             selected_tool = "call_api"
 
-            # Record decision (optional, Phase 2)
+            # Record decision (optional)
             run.record_decision(
                 decision_type="tool_selection",
                 selected=selected_tool,
@@ -67,7 +67,7 @@ Usage Example (Phase 2 - Optional):
         with run.step("retrieve", "search_docs") as step:
             results = search(query)
 
-            # Record quality signal (optional, Phase 2)
+            # Record quality signal (optional)
             run.record_quality_signal(
                 signal_type="empty_retrieval" if len(results) == 0 else "retrieval_success",
                 signal_code="no_results" if len(results) == 0 else "results_found",
@@ -134,7 +134,7 @@ class StepContext:
         Raises:
             ValueError: If metadata contains forbidden keys
         """
-        # Basic validation for forbidden patterns (exact matches only for Phase 1)
+        # Basic validation for forbidden patterns
         forbidden_keys = {"prompt", "response", "output", "input", "content", "text", "message"}
         for key in metadata.keys():
             if key.lower() in forbidden_keys:
@@ -186,8 +186,8 @@ class RunContext:
     - Run start/end timestamps
     - Ordered step sequence
     - Failure classification
-    - Phase 2: Decision points (optional)
-    - Phase 2: Quality signals (optional)
+    - Decision points (optional)
+    - Quality signals (optional)
     """
 
     def __init__(
@@ -211,7 +211,7 @@ class RunContext:
         self._failure: Optional[Dict[str, Any]] = None
         self._step_seq = 0
 
-        # Phase 2: Optional decision and signal tracking
+        # Optional decision and signal tracking
         self._decisions: List[Dict[str, Any]] = []
         self._quality_signals: List[Dict[str, Any]] = []
 
@@ -219,7 +219,7 @@ class RunContext:
         """
         Create a new step context for automatic timing.
 
-        Each retry should be a separate step span (Phase-1 requirement).
+        Each retry should be a separate step span for accurate latency tracking.
 
         Args:
             step_type: Type of step (plan, retrieve, tool, respond, other)
@@ -272,7 +272,7 @@ class RunContext:
         """
         Record a semantic failure for this run.
 
-        Failures must be classified using Phase-1 taxonomy:
+        Failures must be classified using structured taxonomy:
         - failure_type: tool | model | retrieval | orchestration
         - failure_code: timeout | schema_invalid | empty_retrieval | etc.
 
@@ -312,9 +312,9 @@ class RunContext:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Record a structured decision point (Phase 2, optional).
+        Record a structured decision point (optional).
 
-        This is OPTIONAL and does not affect Phase 1 behavior.
+        This is OPTIONAL and does not affect core execution tracking.
         Decisions are structured, enum-based metadata about why the agent
         chose a particular path.
 
@@ -347,7 +347,7 @@ class RunContext:
             if metadata is None:
                 metadata = {}
 
-            validated_metadata = self._validate_phase2_metadata(metadata)
+            validated_metadata = self._validate_decision_metadata(metadata)
 
             # Validate confidence range
             if confidence is not None:
@@ -385,9 +385,9 @@ class RunContext:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Record a quality signal (Phase 2, optional).
+        Record a quality signal (optional).
 
-        This is OPTIONAL and does not affect Phase 1 behavior.
+        This is OPTIONAL and does not affect core execution tracking.
         Quality signals are atomic, factual indicators correlated with
         outcome quality. Signals are non-judgmental observations.
 
@@ -418,7 +418,7 @@ class RunContext:
             if metadata is None:
                 metadata = {}
 
-            validated_metadata = self._validate_phase2_metadata(metadata)
+            validated_metadata = self._validate_decision_metadata(metadata)
 
             # Validate weight range
             if weight is not None:
@@ -445,11 +445,11 @@ class RunContext:
             # Fail-safe: Never crash the agent due to telemetry issues
             logger.error(f"Failed to record quality signal: {e}", exc_info=True)
 
-    def _validate_phase2_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_decision_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Validate Phase 2 metadata for privacy violations.
+        Validate decision/signal metadata for privacy violations.
 
-        Phase 2 privacy constraints:
+        Privacy constraints:
         - Blocked keys: prompt, response, reasoning, thought, message, content, text, etc.
         - Max string length: 100 characters
         - Only primitive types allowed (str, int, float, bool, None)
@@ -532,7 +532,7 @@ class RunContext:
             "failure": self._failure,
         }
 
-        # Phase 2: Include decisions and quality signals if present (optional)
+        # Include decisions and quality signals if present (optional)
         if self._decisions:
             payload["decisions"] = self._decisions
         if self._quality_signals:
@@ -605,8 +605,8 @@ class AgentTracer:
         """
         Send telemetry to the ingest API.
 
-        This is synchronous in Phase-1 MVP.
-        Future: Implement async batching for production.
+        Currently synchronous for simplicity.
+        In production, implement async batching for better performance.
 
         Args:
             payload: Run telemetry data
@@ -641,7 +641,7 @@ class AgentTracer:
         """
         Flush any batched telemetry.
 
-        For Phase-1, this is a no-op (no batching yet).
+        Currently a no-op (no batching implemented yet).
         """
         pass
 

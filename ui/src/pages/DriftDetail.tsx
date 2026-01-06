@@ -1,13 +1,7 @@
 /**
- * Phase 3 - Drift Detail Page
+ * Drift Detail Page
  *
- * Detailed view of a single drift event.
- * Shows baseline vs observed comparison and full context.
- *
- * Design Constraints:
- * - Observational language only
- * - No prescriptive actions or recommendations
- * - Drift is descriptive, not evaluative
+ * Detailed view of a single drift event showing baseline vs observed comparison
  */
 
 import React, { useEffect, useState } from "react";
@@ -84,26 +78,24 @@ const DriftDetail: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch drift event
-      const driftRes = await fetch(`http://localhost:8001/v1/phase3/drift/${driftId}`);
-      if (!driftRes.ok) {
+      const driftResponse = await fetch(`http://localhost:8001/v1/phase3/drift/${driftId}`);
+      if (!driftResponse.ok) {
         throw new Error("Drift event not found");
       }
-      const driftData = await driftRes.json();
-      setDrift(driftData);
+      const driftEvent = await driftResponse.json();
+      setDrift(driftEvent);
 
-      // Fetch baseline
-      const baselineRes = await fetch(
-        `http://localhost:8001/v1/phase3/baselines/${driftData.baseline_id}`
+      const baselineResponse = await fetch(
+        `http://localhost:8001/v1/phase3/baselines/${driftEvent.baseline_id}`
       );
-      if (baselineRes.ok) {
-        const baselineData = await baselineRes.json();
+      if (baselineResponse.ok) {
+        const baselineData = await baselineResponse.json();
         setBaseline(baselineData);
       }
 
       setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch drift details");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to fetch drift details");
       setLoading(false);
     }
   };
@@ -127,8 +119,8 @@ const DriftDetail: React.FC = () => {
       const resolvedDrift = await response.json();
       setDrift(resolvedDrift);
       toast.success("Drift event marked as resolved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to resolve drift");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to resolve drift");
     } finally {
       setResolving(false);
     }
@@ -233,7 +225,6 @@ const DriftDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Change Description */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-start gap-3">
             <TrendIcon className="h-5 w-5 text-gray-600 mt-0.5" />
             <div>

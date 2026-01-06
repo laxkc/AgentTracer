@@ -1,5 +1,5 @@
 /**
- * Phase 3 - Drift Timeline Page
+ * Drift Timeline Page
  *
  * Standalone page for viewing drift timeline visualization.
  * Accepts query parameters for filtering.
@@ -57,7 +57,6 @@ const DriftTimelinePage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* Page Header - SINGLE INSTANCE */}
       <div className="space-y-1">
         <Link
           to="/behaviors"
@@ -79,7 +78,6 @@ const DriftTimelinePage: React.FC = () => {
         </p>
       </div>
 
-      {/* Timeline Component */}
       <DriftTimeline agentId={agentId} agentVersion={agentVersion} environment={environment} />
     </div>
   );

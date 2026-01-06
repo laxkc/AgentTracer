@@ -1,6 +1,7 @@
 /**
- * Phase 3 Specific Hooks
- * Custom hooks for drift, baselines, and profiles
+ * Behavior Analytics Hooks
+ *
+ * Custom hooks for drift detection, baselines, and behavioral profiles
  */
 
 import { useApi, useApiMutation } from './useApi';

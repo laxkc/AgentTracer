@@ -1,19 +1,19 @@
-# AgentTracer - Phase 1, 2 & 3 Complete
+# AgentTracer Platform
 
 ## Overview
 
-This repository contains the **AgentTracer Platform** with Phases 1, 2, and 3 complete. AgentTracer offers **structured, privacy-safe observability for AI agents** by capturing:
+**AgentTracer** is a **privacy-safe observability platform for AI agents** that provides comprehensive behavioral monitoring through three integrated capabilities:
 
-**Phase 1: Execution Observability**
+**Execution Observability**
 - Agent runs, ordered execution steps, and semantic failure details
 - Step-level latency tracking and retry modeling
 
-**Phase 2: Decision & Quality Observability**
+**Decision & Quality Observability**
 - Agent decision points with structured reasoning
 - Quality signals correlated with outcomes
 - Observational analytics (no behavior modification)
 
-**Phase 3: Behavioral Drift Detection** ✨ NEW
+**Behavioral Drift Detection**
 - Statistical baseline creation from historical behavior
 - Drift detection via Chi-square tests and statistical comparison
 - Informational alerts when behavior changes significantly
@@ -23,20 +23,20 @@ This repository contains the **AgentTracer Platform** with Phases 1, 2, and 3 co
 
 **AgentTracer** is an observability platform for AI agents. It records:
 
-**Phase 1 (Execution):**
+**Execution Tracking:**
 - Each agent execution ("run")
 - The ordered sequence of steps within that run
 - Step-level latency
 - Retries as first-class events
 - Semantic failure classifications
 
-**Phase 2 (Decisions & Quality):**
+**Behavioral Analysis:**
 - Agent decision points (tool selection, retry strategy, etc.)
 - Structured reason codes (enum-based, privacy-safe)
 - Quality signals (schema validation, tool success/failure, etc.)
 - Confidence scores for decisions
 
-**Phase 3 (Behavioral Drift):**
+**Drift Detection:**
 - Behavioral baselines (statistical snapshots of expected behavior)
 - Drift detection (Chi-square tests, percent thresholds)
 - Informational alerts (neutral language, no prescriptive actions)
@@ -88,7 +88,7 @@ AgentTracer is **not** intended for:
 - reinforcement learning pipelines
 - evaluation benchmarks or grading frameworks
 
-These areas are **explicitly out of scope** for AgentTracer. Phase 2 adds observational analytics but maintains strict boundaries against optimization and evaluation.
+These areas are **explicitly out of scope** for AgentTracer. The platform provides observational analytics but maintains strict boundaries against optimization and evaluation.
 
 ## Why does this exist?
 
@@ -112,28 +112,28 @@ AgentTracer is built around a **minimal, explicit execution model**:
 
 ```
 AgentRun
-├─ AgentStep (ordered, Phase 1)
-├─ AgentFailure (optional, Phase 1)
-├─ AgentDecision (optional, Phase 2)
-└─ AgentQualitySignal (optional, Phase 2)
+├─ AgentStep (ordered execution steps)
+├─ AgentFailure (optional semantic failure)
+├─ AgentDecision (optional decision points)
+└─ AgentQualitySignal (optional quality indicators)
      ↓
-Phase 3 (Derived Analytics)
+Derived Analytics
 ├─ BehaviorProfile (statistical snapshot)
 ├─ BehaviorBaseline (immutable baseline)
 └─ BehaviorDrift (detected changes)
 ```
 
-**Phase 1:**
+**Core Tracking:**
 - **AgentRun** represents a single execution attempt
 - **AgentStep** represents one action taken by the agent
 - **AgentFailure** represents the semantic reason a run failed
 
-**Phase 2 (Additive):**
+**Behavioral Observability (Additive):**
 - **AgentDecision** represents a decision point with structured reasoning
 - **AgentQualitySignal** represents an observable quality indicator
 
-**Phase 3 (Derived Analytics):**
-- **BehaviorProfile** aggregates Phase 2 data into statistical snapshot
+**Derived Analytics:**
+- **BehaviorProfile** aggregates behavioral data into statistical snapshots
 - **BehaviorBaseline** represents immutable expected behavior
 - **BehaviorDrift** records statistically significant behavioral changes
 
@@ -169,7 +169,7 @@ Each step records:
 
 Retries are represented as **separate steps rather than** overwritten attempts.
 
-### AgentFailure (Phase 1)
+### AgentFailure
 
 A structured, semantic failure description:
 
@@ -177,7 +177,7 @@ A structured, semantic failure description:
 - failure code (e.g., timeout, schema_invalid)
 - optional linkage to the step that caused the failure
 
-### AgentDecision (Phase 2)
+### AgentDecision
 
 A structured record of a decision point where the agent selected between options:
 
@@ -189,7 +189,7 @@ A structured record of a decision point where the agent selected between options
 
 Example: "Selected 'api' over 'cache' because 'fresh_data_required' (confidence: 0.85)"
 
-### AgentQualitySignal (Phase 2)
+### AgentQualitySignal
 
 An atomic, factual signal correlated with outcome quality:
 
@@ -200,11 +200,11 @@ An atomic, factual signal correlated with outcome quality:
 
 Example: "Schema validation = full_match (true)" or "Tool execution = rate_limited (true)"
 
-**Important:** Phase 2 is observational only - no quality scores or correctness judgments.
+**Important:** Quality signals are observational only - no quality scores or correctness judgments.
 
-### BehaviorProfile (Phase 3)
+### BehaviorProfile
 
-A statistical snapshot of agent behavior over a time window, aggregated from Phase 2 data:
+A statistical snapshot of agent behavior over a time window, aggregated from behavioral data:
 
 - decision distributions (e.g., tool_selection: {api: 0.65, cache: 0.30})
 - signal distributions (e.g., schema_valid: {full_match: 0.92, partial_match: 0.06})
@@ -213,7 +213,7 @@ A statistical snapshot of agent behavior over a time window, aggregated from Pha
 
 Profiles are used to create baselines.
 
-### BehaviorBaseline (Phase 3)
+### BehaviorBaseline
 
 An immutable snapshot of expected agent behavior:
 
@@ -224,7 +224,7 @@ An immutable snapshot of expected agent behavior:
 
 Baselines cannot be modified after creation - ensures auditability and prevents silent baseline shifts.
 
-### BehaviorDrift (Phase 3)
+### BehaviorDrift
 
 A record of statistically significant behavioral change:
 
@@ -326,11 +326,12 @@ curl http://localhost:8001/health  # Query API
 ### 2. Run example agent
 
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python dependencies (recommended: uv)
+uv pip install -e .
+# Or using pip: pip install -e .
 
 # Run example with instrumentation
-PYTHONPATH=. python examples/customer_support_agent.py
+python examples/customer_support_agent.py
 ```
 
 ### 3. View telemetry
@@ -387,7 +388,7 @@ See [docs/data-flow.md](./docs/data-flow.md) for privacy enforcement details.
 
 ## What this intentionally does NOT do
 
-Phase 1 intentionally excludes:
+AgentTracer intentionally excludes:
 
 - storage of prompts or LLM outputs
 - chain-of-thought capture
@@ -416,63 +417,56 @@ AgentTracer introduces:
 
 ## Documentation
 
-Comprehensive documentation available in [docs/](./docs/):
+See [QUICK_START.md](./QUICK_START.md) for detailed getting started guide.
 
-- [Architecture](./docs/architecture.md) - System components and design
-- [Data Flow](./docs/data-flow.md) - How telemetry flows through the system
-- [Failure Handling](./docs/failure-handling.md) - Failure taxonomy and classification
-- [Phase 2 Observability](./docs/phase2-observability.md) - Decision tracking and quality signals
-- [Phase 3 Drift Detection](./docs/phase3-drift-detection.md) - Behavioral baselines and drift detection
-- [Deployment](./docs/deployment.md) - Docker architecture and deployment
-- [API Sequences](./docs/api-sequences.md) - Detailed API interactions
-- [Component Responsibilities](./docs/component-responsibility.md) - Separation of concerns
+Additional documentation available in [docs/](./docs/):
+- Internal development notes in [docs/internal/](./docs/internal/)
+- Design templates in [docs/templates/](./docs/templates/)
 
 ## Examples
 
-Two complete examples are provided:
+Complete usage examples are provided in [examples/](./examples/):
 
 1. **customer_support_agent.py** - Success case with retries
 2. **agent_with_failures.py** - Demonstrates all failure types
+3. **agent_with_decisions_example.py** - Includes decisions and quality signals
+4. **drift_detection_example.py** - Demonstrates drift detection workflow
 
 Run examples:
 ```bash
-# Phase 1 examples
-PYTHONPATH=. python examples/customer_support_agent.py
-PYTHONPATH=. python examples/agent_with_failures.py
-
-# Phase 2 examples (includes decisions and quality signals)
-PYTHONPATH=. python examples/agent_with_phase2.py
+python examples/customer_support_agent.py
+python examples/agent_with_failures.py
+python examples/agent_with_decisions_example.py
+python examples/drift_detection_example.py
 ```
 
 ## Stability and maturity
 
-**Phase 1, 2 & 3 status: Complete and production-ready.**
+**Status: Complete and production-ready.**
 
-- Phase 1 data schema is stable (runs, steps, failures)
-- Phase 2 data schema is stable (decisions, quality signals)
-- Phase 3 data schema is stable (profiles, baselines, drift)
+- Data schemas are stable (runs, steps, failures, decisions, signals, profiles, baselines, drift)
 - SDK API is stable (backward compatible)
 - Ingest and query APIs are stable
-- Phase 3 query API complete (/v1/phase3/*)
+- Drift detection API complete (/v1/drift/*)
 - Drift detection engine operational
 
-All phases are **additive** - no modifications to previous phases. Breaking changes to Phase 1, 2, or 3 primitives are **not anticipated.**
+All capabilities are **additive** - new features don't modify existing schemas. Breaking changes to core primitives are **not anticipated.**
 
 ## Project scope summary
 
 **What AgentTracer provides:**
 
-**Phase 1:**
+**Execution Observability:**
 - Execution visibility
 - Latency attribution
 - Failure understanding
 
-**Phase 2:**
+**Behavioral Analysis:**
 - Decision observability
 - Quality signal capture
 - Structured reasoning codes
 
-**Phase 3:**
+**Drift Detection:**
 - Behavioral baseline creation
 - Statistical drift detection
 - Informational alerts
@@ -486,51 +480,17 @@ All phases are **additive** - no modifications to previous phases. Breaking chan
 - Tune or evaluate agents
 - Prescribe actions (alerts are informational only)
 
-These boundaries are **strictly enforced** across all phases.
-
-## Phase 2 Completion
-
-Phase 2 has been successfully completed! See [PHASE2_COMPLETION_SUMMARY.md](./PHASE2_COMPLETION_SUMMARY.md) for:
-- Complete feature list
-- Implementation details
-- Testing results
-- Documentation links
-
-For Phase 2 usage guide, see [docs/phase2-observability.md](./docs/phase2-observability.md).
-
-## Phase 3 Completion
-
-Phase 3 has been successfully completed! See [docs/phase3-drift-detection.md](./docs/phase3-drift-detection.md) for:
-- Complete architecture and data models
-- Statistical methods (Chi-square, percent thresholds)
-- API reference (/v1/phase3/*)
-- Configuration and thresholds
-- Usage examples and best practices
-
-**Key Features Delivered:**
-- ✅ BehaviorProfileBuilder - Aggregates Phase 2 data into statistical profiles
-- ✅ BaselineManager - Creates and manages immutable baselines
-- ✅ DriftDetectionEngine - Detects behavioral changes via statistical comparison
-- ✅ AlertEmitter - Emits neutral, informational alerts
-- ✅ Query API - Read-only endpoints for profiles, baselines, and drift
-- ✅ Configuration - Tunable thresholds in config/drift_thresholds.yaml
-- ✅ Comprehensive Documentation - Complete guide with examples
-
-**Design Principles Enforced:**
-- Observational only (drift ≠ bad, just describes change)
-- Neutral language ("observed increase", not "degraded")
-- Statistical rigor (Chi-square tests, not heuristics)
-- Human-in-the-loop (humans decide actions, not the system)
-- Privacy-safe (derives from Phase 2, no prompts/responses)
+These boundaries are **strictly enforced** across all capabilities.
 
 ## Technology Stack
 
 - **Backend**: Python 3.10+, FastAPI, SQLAlchemy, Pydantic
 - **Database**: PostgreSQL 15
-- **Statistics**: NumPy, SciPy (Phase 3 drift detection)
+- **Statistics**: NumPy, SciPy (drift detection)
 - **UI**: React 18, TypeScript, Tailwind CSS, Vite
 - **Deployment**: Docker, Docker Compose
 - **SDK**: Python with httpx
+- **Package Management**: uv (modern Python package manager)
 
 ## License and contribution
 

@@ -39,7 +39,8 @@ curl http://localhost:8001/health
 
 ```bash
 # Install Python dependencies (for SDK)
-pip install -r requirements.txt
+uv pip install -e .
+# Or using pip: pip install -e .
 
 # Run example agent
 python examples/customer_support_agent.py
@@ -71,24 +72,27 @@ curl http://localhost:8001/v1/runs/{run_id} | jq
 createdb agent_observability
 
 # Apply schema
-./db/setup.sh
+./server/db/setup.sh
 
 # Or manually:
-psql agent_observability < db/schema.sql
+psql agent_observability < server/db/schema.sql
 ```
 
 ### Step 2: Start APIs
 
 **Terminal 1 - Ingest API:**
 ```bash
-pip install -r requirements.txt
-python -m backend.ingest_api
+# Install dependencies with uv (recommended)
+uv pip install -e .
+# Or using pip: pip install -e .
+
+python -m server.ingest_api
 # Runs on http://localhost:8000
 ```
 
 **Terminal 2 - Query API:**
 ```bash
-python -m backend.query_api
+python -m server.query_api
 # Runs on http://localhost:8001
 ```
 
@@ -199,8 +203,9 @@ curl http://localhost:8001/v1/runs/{run_id}
 ## Run Tests
 
 ```bash
-# Install test dependencies
-pip install pytest pytest-asyncio httpx
+# Install test dependencies with uv (recommended)
+uv pip install -e ".[dev]"
+# Or using pip: pip install -e ".[dev]"
 
 # Run all tests
 pytest tests/ -v
@@ -209,7 +214,7 @@ pytest tests/ -v
 pytest tests/test_sdk.py -v
 
 # Run with coverage
-pytest tests/ -v --cov=backend --cov=sdk
+pytest tests/ -v --cov=server --cov=sdk
 ```
 
 ---
@@ -250,8 +255,9 @@ docker-compose restart ingest_api query_api
 # Make sure you're in the project root
 cd testing
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies with uv (recommended)
+uv pip install -e .
+# Or using pip: pip install -e .
 
 # Set PYTHONPATH if needed
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -264,7 +270,7 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 curl http://localhost:8001/v1/runs
 
 # Load seed data
-psql agent_observability < db/seed.sql
+psql agent_observability < server/db/seed.sql
 
 # Run example again
 python examples/customer_support_agent.py
@@ -290,8 +296,8 @@ python examples/customer_support_agent.py
 | Stop all services | `docker-compose down` |
 | View logs | `docker-compose logs -f` |
 | Run tests | `pytest tests/ -v` |
-| Apply schema | `./db/setup.sh` |
-| Load sample data | `psql agent_observability < db/seed.sql` |
+| Apply schema | `./server/db/setup.sh` |
+| Load sample data | `psql agent_observability < server/db/seed.sql` |
 | Check health | `curl http://localhost:8000/health` |
 
 ---

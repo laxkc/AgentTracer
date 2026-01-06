@@ -1,11 +1,11 @@
--- Phase 3 Migration: Behavioral Drift Detection & Operational Guardrails
+-- Drift Detection Migration: Behavioral Baselines and Drift Tracking
 -- This migration creates tables for behavioral baselines, profiles, and drift detection
--- All tables are additive - no modifications to Phase 1 or Phase 2 tables
+-- All tables are additive - no modifications to core or decision quality tables
 
 -- ============================================================================
 -- Table: behavior_profiles
 -- Purpose: Statistical snapshots of agent behavior over time windows
--- Data Source: Aggregated from Phase 2 (agent_decisions, agent_quality_signals)
+-- Data Source: Aggregated from decision quality tables (agent_decisions, agent_quality_signals)
 -- ============================================================================
 
 CREATE TABLE behavior_profiles (
@@ -174,7 +174,7 @@ CREATE INDEX idx_alert_log_status ON alert_log(delivery_status);
 
 -- ============================================================================
 -- Privacy Enforcement Triggers
--- Ensure no sensitive data enters Phase 3 tables
+-- Ensure no sensitive data enters drift detection tables
 -- ============================================================================
 
 -- Trigger: Validate baseline description is privacy-safe
@@ -258,7 +258,7 @@ EXECUTE FUNCTION validate_profile_sample_size();
 -- Comments for documentation
 -- ============================================================================
 
-COMMENT ON TABLE behavior_profiles IS 'Statistical snapshots of agent behavior aggregated from Phase 2 data';
+COMMENT ON TABLE behavior_profiles IS 'Statistical snapshots of agent behavior aggregated from decision and quality signal data';
 COMMENT ON TABLE behavior_baselines IS 'Immutable approved baselines for drift comparison';
 COMMENT ON TABLE behavior_drift IS 'Records of detected behavioral changes (observational only)';
 COMMENT ON TABLE alert_log IS 'Log of emitted alerts for drift events';
@@ -281,7 +281,7 @@ COMMENT ON COLUMN behavior_drift.significance IS 'Statistical p-value from drift
 -- Verify tables created
 DO $$
 BEGIN
-    RAISE NOTICE 'Phase 3 migration complete. Tables created:';
+    RAISE NOTICE 'Drift detection migration complete. Tables created:';
     RAISE NOTICE '  - behavior_profiles';
     RAISE NOTICE '  - behavior_baselines';
     RAISE NOTICE '  - behavior_drift';
