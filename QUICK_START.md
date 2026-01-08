@@ -59,7 +59,7 @@ curl http://localhost:8001/v1/stats | jq
 curl http://localhost:8001/v1/runs/{run_id} | jq
 ```
 
-**That's it!** ✨
+**That's it!**
 
 ---
 
@@ -150,14 +150,14 @@ with tracer.start_run() as run:
 
 ### What Gets Captured
 
-✅ **Captured:**
+**Captured:**
 - Run start/end times
 - Step sequence and timing
 - Retry attempts (as separate steps)
 - Failure classification
 - Safe metadata (tool names, codes, counts)
 
-❌ **NOT Captured:**
+**NOT Captured:**
 - Prompts or responses
 - User input
 - Retrieved documents
@@ -225,13 +225,13 @@ pytest tests/ -v --cov=server --cov=sdk
 
 ```bash
 # Check if PostgreSQL is running
-docker-compose ps postgres
+docker compose ps postgres
 
 # Or for local:
 pg_isready
 
 # Restart database
-docker-compose restart postgres
+docker compose restart postgres
 ```
 
 ### API Not Responding
@@ -242,11 +242,11 @@ curl http://localhost:8000/health
 curl http://localhost:8001/health
 
 # Check logs
-docker-compose logs ingest_api
-docker-compose logs query_api
+docker compose logs ingest_api
+docker compose logs query_api
 
 # Restart APIs
-docker-compose restart ingest_api query_api
+docker compose restart ingest_api query_api
 ```
 
 ### Import Errors
@@ -280,11 +280,9 @@ python examples/customer_support_agent.py
 
 ## Next Steps
 
-1. **Read Full Docs:** See `PROJECT_README.md`
-2. **Deploy to Production:** See `DEPLOYMENT.md`
-3. **Integrate Your Agent:** Modify SDK example above
-4. **Build UI:** Use React components in `ui/src/components/`
-5. **Scale Up:** Follow scaling guide in `DEPLOYMENT.md`
+1. **Read Full Docs:** See `README.md`
+2. **Integrate Your Agent:** Modify SDK example above
+3. **Build UI:** Use React components in `ui/src/components/`
 
 ---
 
@@ -292,9 +290,9 @@ python examples/customer_support_agent.py
 
 | Task | Command |
 |------|---------|
-| Start all services | `docker-compose up -d` |
-| Stop all services | `docker-compose down` |
-| View logs | `docker-compose logs -f` |
+| Start all services | `docker compose up -d` |
+| Stop all services | `docker compose down` |
+| View logs | `docker compose logs -f` |
 | Run tests | `pytest tests/ -v` |
 | Apply schema | `./server/db/setup.sh` |
 | Load sample data | `psql agent_observability < server/db/seed.sql` |
@@ -319,4 +317,4 @@ python examples/customer_support_agent.py
 
 ---
 
-**Need Help?** Check `PROJECT_README.md` or `DEPLOYMENT.md`
+**Need Help?** Check `README.md` for complete documentation.

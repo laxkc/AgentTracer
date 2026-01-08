@@ -333,7 +333,7 @@ credentials.json
 # Logs
 logs/
 *.log
-backend/*.log
+server/*.log
 ui/*.log
 
 # Temporary files
@@ -383,7 +383,10 @@ config.local.py
 !examples/*.py
 
 # Keep schema files
-!db/schema.sql
+!server/db/schema.sql
+!server/db/setup.sh
+!server/db/seed.sql
+!server/db/migrations/
 
 # Keep Docker files
 !Dockerfile
