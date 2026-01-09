@@ -13,6 +13,7 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select } from './ui/select';
+import { API_CONFIG, API_ENDPOINTS } from '../config/api';
 
 interface BehaviorDrift {
   drift_id: string;
@@ -79,7 +80,7 @@ const DriftTimeline: React.FC<DriftTimelineProps> = ({
       if (agentVersion) params.append('agent_version', agentVersion);
       if (environment) params.append('environment', environment);
 
-      const response = await fetch(`http://localhost:8001/v1/phase3/drift?${params}`);
+      const response = await fetch(`${API_CONFIG.QUERY_API_BASE_URL}${API_ENDPOINTS.DRIFT}?${params}`);
       const data = await response.json();
 
       // Filter by date range if specified

@@ -7,7 +7,7 @@
  * - Step metadata display
  * - Retry attempt highlighting
  *
- * This component is critical for Phase-1 debugging:
+ * This component is critical for execution debugging:
  * "Understand why the agent failed in under 60 seconds"
  */
 

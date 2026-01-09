@@ -11,14 +11,14 @@ Constraints:
 - Purely observational - no behavior modification
 """
 
+import math
 from datetime import datetime
-from typing import Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from server.models import (
+from server.models.database import (
     AgentDecisionDB,
     AgentQualitySignalDB,
     AgentRunDB,
@@ -27,6 +27,7 @@ from server.models import (
 
 class InsufficientDataError(Exception):
     """Raised when insufficient data exists to build a valid profile."""
+
     pass
 
 
@@ -45,9 +46,9 @@ class BehaviorProfile:
         window_start: datetime,
         window_end: datetime,
         sample_size: int,
-        decision_distributions: Dict,
-        signal_distributions: Dict,
-        latency_stats: Dict,
+        decision_distributions: dict,
+        signal_distributions: dict,
+        latency_stats: dict,
         created_at: datetime,
     ):
         self.profile_id = profile_id
@@ -93,7 +94,7 @@ class BehaviorProfileBuilder:
         window_start: datetime,
         window_end: datetime,
         min_sample_size: int = 100,
-    ) -> Dict:
+    ) -> dict:
         """
         Build a behavior profile from decision and quality signal data.
 
@@ -188,7 +189,7 @@ class BehaviorProfileBuilder:
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> List:
+    ) -> list:
         """
         Query decision type and selected combinations with counts.
 
@@ -222,7 +223,7 @@ class BehaviorProfileBuilder:
             .all()
         )
 
-    def _normalize_distributions(self, distributions: Dict, type_totals: Dict) -> Dict:
+    def _normalize_distributions(self, distributions: dict, type_totals: dict) -> dict:
         """
         Normalize count distributions to probabilities (sum to 1.0).
 
@@ -252,7 +253,7 @@ class BehaviorProfileBuilder:
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> Dict:
+    ) -> dict:
         """
         Aggregate decision distributions from agent_decisions table.
 
@@ -297,7 +298,7 @@ class BehaviorProfileBuilder:
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> List:
+    ) -> list:
         """
         Query signal type and code combinations with counts.
 
@@ -338,7 +339,7 @@ class BehaviorProfileBuilder:
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> Dict:
+    ) -> dict:
         """
         Aggregate quality signal distributions from agent_quality_signals table.
 
@@ -376,7 +377,7 @@ class BehaviorProfileBuilder:
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Query all run durations in time window.
 
@@ -412,7 +413,7 @@ class BehaviorProfileBuilder:
         # Extract durations in milliseconds (convert Decimal to float)
         return [float(d.duration_seconds) * 1000 for d in runs if d.duration_seconds]
 
-    def _calculate_percentiles(self, sorted_durations: List[float]) -> Dict:
+    def _calculate_percentiles(self, sorted_durations: list[float]) -> dict:
         """
         Calculate percentile statistics from sorted durations.
 
@@ -423,16 +424,21 @@ class BehaviorProfileBuilder:
             Dict of percentile statistics
         """
         n = len(sorted_durations)
+
+        if n == 0:
+            raise ValueError("Cannot calculate percentiles for empty input")
+
         mean = sum(sorted_durations) / n
-        p50 = sorted_durations[int(n * 0.50)]
-        p95 = sorted_durations[int(n * 0.95)] if n > 1 else sorted_durations[0]
-        p99 = sorted_durations[int(n * 0.99)] if n > 1 else sorted_durations[0]
+
+        def percentile(p: float) -> float:
+            index = min(n - 1, math.floor(p * n) - 1)
+            return sorted_durations[index]
 
         return {
             "mean_run_duration_ms": round(mean, 2),
-            "p50_run_duration_ms": round(p50, 2),
-            "p95_run_duration_ms": round(p95, 2),
-            "p99_run_duration_ms": round(p99, 2),
+            "p50_run_duration_ms": round(percentile(0.50), 2),
+            "p95_run_duration_ms": round(percentile(0.95), 2),
+            "p99_run_duration_ms": round(percentile(0.99), 2),
             "sample_count": n,
         }
 
@@ -443,7 +449,7 @@ class BehaviorProfileBuilder:
         environment: str,
         window_start: datetime,
         window_end: datetime,
-    ) -> Dict:
+    ) -> dict:
         """
         Compute latency statistics from agent_runs table.
 
@@ -501,7 +507,7 @@ def create_behavior_profile(
     window_start: datetime,
     window_end: datetime,
     min_sample_size: int = 100,
-) -> Dict:
+) -> dict:
     """
     Convenience function to build and return a behavior profile.
 

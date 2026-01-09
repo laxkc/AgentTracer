@@ -77,11 +77,9 @@ Advanced Usage (Optional Decision & Quality Signal Tracking):
     ```
 """
 
-import asyncio
 import logging
-from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import httpx
@@ -117,11 +115,11 @@ class StepContext:
         self.seq = seq
         self.run_context = run_context
 
-        self.started_at: Optional[datetime] = None
-        self.ended_at: Optional[datetime] = None
-        self.metadata: Dict[str, Any] = {}
+        self.started_at: datetime | None = None
+        self.ended_at: datetime | None = None
+        self.metadata: dict[str, Any] = {}
 
-    def add_metadata(self, metadata: Dict[str, Any]) -> None:
+    def add_metadata(self, metadata: dict[str, Any]) -> None:
         """
         Add safe metadata to this step.
 
@@ -138,9 +136,7 @@ class StepContext:
         forbidden_keys = {"prompt", "response", "output", "input", "content", "text", "message"}
         for key in metadata.keys():
             if key.lower() in forbidden_keys:
-                logger.warning(
-                    f"Skipping metadata key '{key}' - may contain sensitive data"
-                )
+                logger.warning(f"Skipping metadata key '{key}' - may contain sensitive data")
                 continue
             self.metadata[key] = metadata[key]
 
@@ -203,17 +199,17 @@ class RunContext:
         self.environment = environment
         self.tracer = tracer
 
-        self.started_at: Optional[datetime] = None
-        self.ended_at: Optional[datetime] = None
+        self.started_at: datetime | None = None
+        self.ended_at: datetime | None = None
         self.status: RunStatus = "success"
 
-        self._steps: List[Dict[str, Any]] = []
-        self._failure: Optional[Dict[str, Any]] = None
+        self._steps: list[dict[str, Any]] = []
+        self._failure: dict[str, Any] | None = None
         self._step_seq = 0
 
         # Optional decision and signal tracking
-        self._decisions: List[Dict[str, Any]] = []
-        self._quality_signals: List[Dict[str, Any]] = []
+        self._decisions: list[dict[str, Any]] = []
+        self._quality_signals: list[dict[str, Any]] = []
 
     def step(self, step_type: StepType, name: str) -> StepContext:
         """
@@ -246,7 +242,7 @@ class RunContext:
         latency_ms: int,
         started_at: datetime,
         ended_at: datetime,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """Internal: Record a completed step"""
         self._steps.append(
@@ -267,7 +263,7 @@ class RunContext:
         failure_type: FailureType,
         failure_code: str,
         message: str,
-        step_id: Optional[UUID] = None,
+        step_id: UUID | None = None,
     ) -> None:
         """
         Record a semantic failure for this run.
@@ -288,10 +284,9 @@ class RunContext:
         for pattern in sensitive_patterns:
             if pattern in lower_msg:
                 logger.warning(
-                    f"Failure message may contain sensitive data ('{pattern}'). "
-                    f"Sanitizing..."
+                    f"Failure message may contain sensitive data ('{pattern}'). Sanitizing..."
                 )
-                message = f"Failure occurred (details sanitized for privacy)"
+                message = "Failure occurred (details sanitized for privacy)"
 
         self._failure = {
             "failure_type": failure_type,
@@ -306,10 +301,10 @@ class RunContext:
         decision_type: str,
         selected: str,
         reason_code: str,
-        candidates: Optional[List[str]] = None,
-        confidence: Optional[float] = None,
-        step_id: Optional[UUID] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        candidates: list[str] | None = None,
+        confidence: float | None = None,
+        step_id: UUID | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Record a structured decision point (optional).
@@ -380,9 +375,9 @@ class RunContext:
         signal_type: str,
         signal_code: str,
         value: bool,
-        weight: Optional[float] = None,
-        step_id: Optional[UUID] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        weight: float | None = None,
+        step_id: UUID | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Record a quality signal (optional).
@@ -423,9 +418,7 @@ class RunContext:
             # Validate weight range
             if weight is not None:
                 if not (0.0 <= weight <= 1.0):
-                    logger.warning(
-                        f"Weight {weight} out of range [0.0, 1.0]. Ignoring signal."
-                    )
+                    logger.warning(f"Weight {weight} out of range [0.0, 1.0]. Ignoring signal.")
                     return
 
             signal = {
@@ -445,7 +438,7 @@ class RunContext:
             # Fail-safe: Never crash the agent due to telemetry issues
             logger.error(f"Failed to record quality signal: {e}", exc_info=True)
 
-    def _validate_decision_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_decision_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """
         Validate decision/signal metadata for privacy violations.
 
@@ -464,9 +457,18 @@ class RunContext:
             ValueError: If privacy violation detected
         """
         BLOCKED_KEYS = {
-            "prompt", "response", "reasoning", "thought",
-            "message", "content", "text", "output", "input",
-            "chain_of_thought", "explanation", "rationale"
+            "prompt",
+            "response",
+            "reasoning",
+            "thought",
+            "message",
+            "content",
+            "text",
+            "output",
+            "input",
+            "chain_of_thought",
+            "explanation",
+            "rationale",
         }
 
         validated = {}
@@ -474,23 +476,17 @@ class RunContext:
         for key, value in metadata.items():
             # Check blocked keys
             if key.lower() in BLOCKED_KEYS:
-                logger.warning(
-                    f"Metadata key '{key}' is blocked for privacy. Skipping."
-                )
+                logger.warning(f"Metadata key '{key}' is blocked for privacy. Skipping.")
                 continue
 
             # Check value types (primitives only)
             if not isinstance(value, (str, int, float, bool, type(None))):
-                logger.warning(
-                    f"Metadata value for '{key}' must be primitive type. Skipping."
-                )
+                logger.warning(f"Metadata value for '{key}' must be primitive type. Skipping.")
                 continue
 
             # Check string lengths
             if isinstance(value, str) and len(value) > 100:
-                logger.warning(
-                    f"Metadata string '{key}' exceeds 100 characters. Truncating."
-                )
+                logger.warning(f"Metadata string '{key}' exceeds 100 characters. Truncating.")
                 value = value[:100]
 
             validated[key] = value
@@ -573,7 +569,7 @@ class AgentTracer:
         agent_version: str,
         api_url: str = "http://localhost:8000",
         environment: str = "production",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ):
         self.agent_id = agent_id
         self.agent_version = agent_version
@@ -585,7 +581,7 @@ class AgentTracer:
         self._client = httpx.Client(timeout=5.0)
 
         # TODO: Implement batching for production use
-        self._batch: List[Dict[str, Any]] = []
+        self._batch: list[dict[str, Any]] = []
 
     def start_run(self) -> RunContext:
         """
@@ -601,7 +597,7 @@ class AgentTracer:
             tracer=self,
         )
 
-    def _send_telemetry(self, payload: Dict[str, Any]) -> None:
+    def _send_telemetry(self, payload: dict[str, Any]) -> None:
         """
         Send telemetry to the ingest API.
 
@@ -629,7 +625,7 @@ class AgentTracer:
         except httpx.HTTPError as e:
             logger.error(f"Failed to send telemetry: {e}")
             # Log validation errors (422) for debugging
-            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 422:
+            if hasattr(e, "response") and e.response is not None and e.response.status_code == 422:
                 try:
                     error_detail = e.response.json()
                     logger.error(f"Validation error details: {error_detail}")

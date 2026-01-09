@@ -10,10 +10,11 @@ This example demonstrates how to capture and classify different types of agent f
 Run this to populate the observability platform with failure data.
 """
 
-import time
-import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import sys
+import time
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sdk.agenttrace import AgentTracer
 
@@ -43,7 +44,7 @@ def simulate_tool_timeout_failure():
 
         # Tool call that times out
         try:
-            with run.step("tool", "call_external_api") as step:
+            with run.step("tool", "call_external_api") as _step:
                 time.sleep(0.1)
                 # Simulate timeout
                 raise TimeoutError("API call exceeded 30s timeout")
@@ -70,7 +71,7 @@ def simulate_model_rate_limit_failure():
 
         # Model call that hits rate limit
         try:
-            with run.step("respond", "generate_response") as step:
+            with run.step("respond", "generate_response") as _step:
                 time.sleep(0.12)
                 # Simulate rate limit
                 raise Exception("Rate limit exceeded: 429 Too Many Requests")
@@ -97,7 +98,7 @@ def simulate_retrieval_no_results_failure():
 
         # Retrieval that finds nothing
         try:
-            with run.step("retrieve", "search_knowledge_base") as step:
+            with run.step("retrieve", "search_knowledge_base") as _step:
                 time.sleep(0.15)
                 # Simulate no results
                 results = []
@@ -133,7 +134,7 @@ def simulate_orchestration_constraint_violation():
 
         # Orchestration fails due to constraint
         try:
-            with run.step("plan", "validate_workflow") as step:
+            with run.step("plan", "validate_workflow") as _step:
                 time.sleep(0.04)
                 # Simulate constraint violation
                 raise RuntimeError("Maximum retry attempts (3) exceeded for workflow")
@@ -160,7 +161,7 @@ def simulate_tool_invalid_response_failure():
 
         # Tool call that returns invalid data
         try:
-            with run.step("tool", "call_weather_api") as step:
+            with run.step("tool", "call_weather_api") as _step:
                 time.sleep(0.11)
                 # Simulate invalid response
                 response = {"error": "malformed JSON"}
@@ -193,7 +194,7 @@ def simulate_model_context_length_failure():
 
         # Model call that exceeds context
         try:
-            with run.step("respond", "generate_with_context") as step:
+            with run.step("respond", "generate_with_context") as _step:
                 time.sleep(0.09)
                 # Simulate context length error
                 raise Exception("Context length of 150000 tokens exceeds model limit of 128000")
@@ -220,7 +221,7 @@ def simulate_retrieval_connection_failure():
 
         # Retrieval connection failure
         try:
-            with run.step("retrieve", "query_vector_db") as step:
+            with run.step("retrieve", "query_vector_db") as _step:
                 time.sleep(0.08)
                 # Simulate connection error
                 raise ConnectionError("Failed to connect to vector database: Connection refused")

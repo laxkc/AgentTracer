@@ -88,17 +88,37 @@ These exclusions are intentional design decisions, not missing features.
 
 ## How do I use it in 2 minutes?
 
-**Start the platform:**
+**Prerequisites:**
+
+- [UV](https://docs.astral.sh/uv/) (recommended) or Python 3.10+
+- Docker and Docker Compose
+- PostgreSQL (via Docker)
+
+**Setup with UV (recommended):**
 
 ```bash
+# Install UV if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies (this project is part of a UV workspace)
+cd .. && uv sync && cd testing
+
+# Start the platform
 docker compose up -d
 ```
 
-**Install SDK:**
+**Alternative setup with pip:**
 
 ```bash
-uv pip install -e .
-# Or using pip: pip install -e .
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -e .
+
+# Start platform
+docker compose up -d
 ```
 
 **Instrument your agent:**

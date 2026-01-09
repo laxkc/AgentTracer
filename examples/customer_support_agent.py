@@ -15,7 +15,6 @@ All steps are captured with full observability and privacy-safe tracking.
 
 import random
 import time
-from typing import Dict, List
 
 from sdk.agenttrace import AgentTracer
 
@@ -106,7 +105,7 @@ class CustomerSupportAgent:
 
             return response
 
-    def _analyze_query(self, query: str) -> Dict:
+    def _analyze_query(self, query: str) -> dict:
         """
         Analyze the customer query.
 
@@ -124,7 +123,7 @@ class CustomerSupportAgent:
         else:
             return {"type": "general", "priority": "low"}
 
-    def _search_knowledge_base(self, query_analysis: Dict) -> List[Dict]:
+    def _search_knowledge_base(self, query_analysis: dict) -> list[dict]:
         """
         Search knowledge base for relevant articles.
 
@@ -139,9 +138,9 @@ class CustomerSupportAgent:
             {"title": "Common billing questions", "relevance": 0.72},
         ]
 
-        return articles[:random.randint(2, 3)]
+        return articles[: random.randint(2, 3)]
 
-    def _call_external_api(self, query_analysis: Dict) -> Dict:
+    def _call_external_api(self, query_analysis: dict) -> dict:
         """
         Call external API for customer data.
 
@@ -160,7 +159,7 @@ class CustomerSupportAgent:
         }
 
     def _generate_response(
-        self, query_analysis: Dict, kb_results: List[Dict], api_data: Dict
+        self, query_analysis: dict, kb_results: list[dict], api_data: dict
     ) -> str:
         """
         Generate customer response.

@@ -9,10 +9,9 @@ These enums enforce structured, privacy-safe metadata capture.
 """
 
 from enum import Enum
-from typing import Dict, List
-
 
 # Decision Types
+
 
 class DecisionType(str, Enum):
     """
@@ -21,6 +20,7 @@ class DecisionType(str, Enum):
     These represent high-level decision categories that agents
     explicitly record during execution.
     """
+
     TOOL_SELECTION = "tool_selection"
     RETRIEVAL_STRATEGY = "retrieval_strategy"
     RESPONSE_MODE = "response_mode"
@@ -30,8 +30,10 @@ class DecisionType(str, Enum):
 
 # Reason Codes (by Decision Type)
 
+
 class ToolSelectionReason(str, Enum):
     """Reason codes for tool_selection decisions."""
+
     FRESH_DATA_REQUIRED = "fresh_data_required"
     CACHED_DATA_SUFFICIENT = "cached_data_sufficient"
     TOOL_UNAVAILABLE = "tool_unavailable"
@@ -42,6 +44,7 @@ class ToolSelectionReason(str, Enum):
 
 class RetrievalStrategyReason(str, Enum):
     """Reason codes for retrieval_strategy decisions."""
+
     SEMANTIC_SEARCH_PREFERRED = "semantic_search_preferred"
     KEYWORD_MATCH_SUFFICIENT = "keyword_match_sufficient"
     HYBRID_APPROACH_NEEDED = "hybrid_approach_needed"
@@ -51,6 +54,7 @@ class RetrievalStrategyReason(str, Enum):
 
 class ResponseModeReason(str, Enum):
     """Reason codes for response_mode decisions."""
+
     STREAMING_REQUESTED = "streaming_requested"
     BATCH_PREFERRED = "batch_preferred"
     FORMAT_CONSTRAINT = "format_constraint"
@@ -59,6 +63,7 @@ class ResponseModeReason(str, Enum):
 
 class RetryStrategyReason(str, Enum):
     """Reason codes for retry_strategy decisions."""
+
     TRANSIENT_ERROR_DETECTED = "transient_error_detected"
     RATE_LIMIT_ENCOUNTERED = "rate_limit_encountered"
     NO_RETRY_TERMINAL_ERROR = "no_retry_terminal_error"
@@ -68,6 +73,7 @@ class RetryStrategyReason(str, Enum):
 
 class OrchestrationPathReason(str, Enum):
     """Reason codes for orchestration_path decisions."""
+
     SEQUENTIAL_REQUIRED = "sequential_required"
     PARALLEL_PREFERRED = "parallel_preferred"
     CONDITIONAL_BRANCH = "conditional_branch"
@@ -77,7 +83,7 @@ class OrchestrationPathReason(str, Enum):
 
 # Decision Reason Code Mapping
 
-DECISION_REASON_CODES: Dict[DecisionType, List[str]] = {
+DECISION_REASON_CODES: dict[DecisionType, list[str]] = {
     DecisionType.TOOL_SELECTION: [e.value for e in ToolSelectionReason],
     DecisionType.RETRIEVAL_STRATEGY: [e.value for e in RetrievalStrategyReason],
     DecisionType.RESPONSE_MODE: [e.value for e in ResponseModeReason],
@@ -88,6 +94,7 @@ DECISION_REASON_CODES: Dict[DecisionType, List[str]] = {
 
 # Signal Types
 
+
 class SignalType(str, Enum):
     """
     Types of quality signals that can be observed.
@@ -95,6 +102,7 @@ class SignalType(str, Enum):
     These represent atomic, factual indicators correlated with
     outcome quality. Signals are non-judgmental observations.
     """
+
     SCHEMA_VALID = "schema_valid"
     EMPTY_RETRIEVAL = "empty_retrieval"
     TOOL_SUCCESS = "tool_success"
@@ -106,8 +114,10 @@ class SignalType(str, Enum):
 
 # Signal Codes (by Signal Type)
 
+
 class SchemaValidSignal(str, Enum):
     """Signal codes for schema_valid signal type."""
+
     FULL_MATCH = "full_match"
     PARTIAL_MATCH = "partial_match"
     VALIDATION_FAILED = "validation_failed"
@@ -116,6 +126,7 @@ class SchemaValidSignal(str, Enum):
 
 class EmptyRetrievalSignal(str, Enum):
     """Signal codes for empty_retrieval signal type."""
+
     NO_RESULTS = "no_results"
     FILTERED_OUT = "filtered_out"
     INDEX_EMPTY = "index_empty"
@@ -123,6 +134,7 @@ class EmptyRetrievalSignal(str, Enum):
 
 class ToolSuccessSignal(str, Enum):
     """Signal codes for tool_success signal type."""
+
     FIRST_ATTEMPT = "first_attempt"
     AFTER_RETRY = "after_retry"
     FALLBACK_USED = "fallback_used"
@@ -130,6 +142,7 @@ class ToolSuccessSignal(str, Enum):
 
 class ToolFailureSignal(str, Enum):
     """Signal codes for tool_failure signal type."""
+
     TIMEOUT = "timeout"
     INVALID_INPUT = "invalid_input"
     UNAVAILABLE = "unavailable"
@@ -139,6 +152,7 @@ class ToolFailureSignal(str, Enum):
 
 class RetryOccurredSignal(str, Enum):
     """Signal codes for retry_occurred signal type."""
+
     SINGLE_RETRY = "single_retry"
     MULTIPLE_RETRIES = "multiple_retries"
     MAX_RETRIES_REACHED = "max_retries_reached"
@@ -146,6 +160,7 @@ class RetryOccurredSignal(str, Enum):
 
 class LatencyThresholdSignal(str, Enum):
     """Signal codes for latency_threshold signal type."""
+
     UNDER_THRESHOLD = "under_threshold"
     EXCEEDED_THRESHOLD = "exceeded_threshold"
     SIGNIFICANTLY_EXCEEDED = "significantly_exceeded"
@@ -153,6 +168,7 @@ class LatencyThresholdSignal(str, Enum):
 
 class TokenUsageSignal(str, Enum):
     """Signal codes for token_usage signal type."""
+
     LOW_USAGE = "low_usage"
     MODERATE_USAGE = "moderate_usage"
     HIGH_USAGE = "high_usage"
@@ -161,7 +177,7 @@ class TokenUsageSignal(str, Enum):
 
 # Signal Code Mapping
 
-SIGNAL_CODES: Dict[SignalType, List[str]] = {
+SIGNAL_CODES: dict[SignalType, list[str]] = {
     SignalType.SCHEMA_VALID: [e.value for e in SchemaValidSignal],
     SignalType.EMPTY_RETRIEVAL: [e.value for e in EmptyRetrievalSignal],
     SignalType.TOOL_SUCCESS: [e.value for e in ToolSuccessSignal],
@@ -173,6 +189,7 @@ SIGNAL_CODES: Dict[SignalType, List[str]] = {
 
 
 # Validation Functions
+
 
 def validate_decision_type(decision_type: str) -> bool:
     """
@@ -244,7 +261,7 @@ def validate_signal_code(signal_type: str, signal_code: str) -> bool:
         return False
 
 
-def get_valid_reason_codes(decision_type: str) -> List[str]:
+def get_valid_reason_codes(decision_type: str) -> list[str]:
     """
     Get all valid reason codes for a given decision type.
 
@@ -261,7 +278,7 @@ def get_valid_reason_codes(decision_type: str) -> List[str]:
         return []
 
 
-def get_valid_signal_codes(signal_type: str) -> List[str]:
+def get_valid_signal_codes(signal_type: str) -> list[str]:
     """
     Get all valid signal codes for a given signal type.
 

@@ -13,16 +13,12 @@ Constraints:
 - Include statistical significance
 """
 
-import json
 import logging
 import os
-from datetime import datetime
-from typing import Optional
 
 import requests
 
-from server.drift_engine import BehaviorDriftDB
-
+from server.models.database import BehaviorDriftDB
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -375,6 +371,7 @@ class AlertEmitter:
 
 
 # Convenience function
+
 
 def emit_drift_alert(drift: BehaviorDriftDB) -> None:
     """

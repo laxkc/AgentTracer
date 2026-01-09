@@ -20,7 +20,7 @@ Privacy constraints:
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -74,27 +74,17 @@ class AgentRunDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     # Relationships
-    steps = relationship(
-        "AgentStepDB", back_populates="run", cascade="all, delete-orphan"
-    )
-    failures = relationship(
-        "AgentFailureDB", back_populates="run", cascade="all, delete-orphan"
-    )
+    steps = relationship("AgentStepDB", back_populates="run", cascade="all, delete-orphan")
+    failures = relationship("AgentFailureDB", back_populates="run", cascade="all, delete-orphan")
     # Optional decision and quality signal relationships
-    decisions = relationship(
-        "AgentDecisionDB", back_populates="run", cascade="all, delete-orphan"
-    )
+    decisions = relationship("AgentDecisionDB", back_populates="run", cascade="all, delete-orphan")
     quality_signals = relationship(
         "AgentQualitySignalDB", back_populates="run", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
-        CheckConstraint(
-            "status IN ('success', 'failure', 'partial')", name="valid_status"
-        ),
-        CheckConstraint(
-            "ended_at IS NULL OR ended_at >= started_at", name="valid_end_time"
-        ),
+        CheckConstraint("status IN ('success', 'failure', 'partial')", name="valid_status"),
+        CheckConstraint("ended_at IS NULL OR ended_at >= started_at", name="valid_end_time"),
     )
 
 
@@ -110,7 +100,10 @@ class AgentStepDB(Base):
 
     step_id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     run_id = Column(
-        PGUUID(as_uuid=True), ForeignKey("agent_runs.run_id", ondelete="CASCADE"), nullable=False, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("agent_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     seq = Column(Integer, nullable=False)
     step_type = Column(String(50), nullable=False, index=True)
@@ -150,7 +143,10 @@ class AgentFailureDB(Base):
 
     failure_id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     run_id = Column(
-        PGUUID(as_uuid=True), ForeignKey("agent_runs.run_id", ondelete="CASCADE"), nullable=False, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("agent_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     step_id = Column(
         PGUUID(as_uuid=True),
@@ -307,11 +303,11 @@ class AgentStepCreate(BaseModel):
     ended_at: datetime
 
     # Safe metadata only - enforced by validation
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("metadata")
     @classmethod
-    def validate_safe_metadata(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_safe_metadata(cls, v: dict[str, Any]) -> dict[str, Any]:
         """
         Ensure metadata contains no sensitive data.
 
@@ -345,7 +341,7 @@ class AgentFailureCreate(BaseModel):
     Enforces mandatory failure taxonomy.
     """
 
-    step_id: Optional[UUID] = Field(None, description="Optional step where failure occurred")
+    step_id: UUID | None = Field(None, description="Optional step where failure occurred")
     failure_type: FailureType
     failure_code: str = Field(..., min_length=1, max_length=100)
     message: str = Field(..., min_length=1, description="Human-readable failure description")
@@ -385,34 +381,40 @@ class AgentDecisionCreate(BaseModel):
     """
 
     decision_id: UUID = Field(default_factory=uuid4)
-    step_id: Optional[UUID] = Field(None, description="Optional step where decision was made")
+    step_id: UUID | None = Field(None, description="Optional step where decision was made")
     decision_type: str = Field(..., min_length=1, max_length=100)
-    selected: str = Field(..., min_length=1, max_length=200, description="The option that was selected")
-    reason_code: str = Field(..., min_length=1, max_length=100, description="Structured reason code (enum)")
-    candidates: Optional[List[str]] = Field(None, description="Other options considered (stored in metadata)")
-    confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Decision confidence 0.0-1.0")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Structured metadata only")
+    selected: str = Field(
+        ..., min_length=1, max_length=200, description="The option that was selected"
+    )
+    reason_code: str = Field(
+        ..., min_length=1, max_length=100, description="Structured reason code (enum)"
+    )
+    candidates: list[str] | None = Field(
+        None, description="Other options considered (stored in metadata)"
+    )
+    confidence: float | None = Field(
+        None, ge=0.0, le=1.0, description="Decision confidence 0.0-1.0"
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Structured metadata only")
 
     @field_validator("decision_type")
     @classmethod
     def validate_decision_type_enum(cls, v: str) -> str:
         """Validate decision_type is a valid enum value."""
-        from server.enums import validate_decision_type
+        from server.models.enums import validate_decision_type
 
         if not validate_decision_type(v):
-            from server.enums import DecisionType
+            from server.models.enums import DecisionType
+
             valid_types = [dt.value for dt in DecisionType]
-            raise ValueError(
-                f"Invalid decision_type: '{v}'. "
-                f"Must be one of: {valid_types}"
-            )
+            raise ValueError(f"Invalid decision_type: '{v}'. Must be one of: {valid_types}")
         return v
 
     @field_validator("reason_code")
     @classmethod
     def validate_reason_code_for_type(cls, v: str, info) -> str:
         """Validate reason_code is valid for the decision_type."""
-        from server.enums import validate_reason_code, get_valid_reason_codes
+        from server.models.enums import get_valid_reason_codes, validate_reason_code
 
         if "decision_type" in info.data:
             decision_type = info.data["decision_type"]
@@ -426,7 +428,7 @@ class AgentDecisionCreate(BaseModel):
 
     @field_validator("metadata")
     @classmethod
-    def validate_metadata_privacy(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_metadata_privacy(cls, v: dict[str, Any]) -> dict[str, Any]:
         """
         Validate metadata contains no sensitive data.
 
@@ -435,9 +437,18 @@ class AgentDecisionCreate(BaseModel):
         Only primitive types allowed
         """
         BLOCKED_KEYS = {
-            "prompt", "response", "reasoning", "thought",
-            "message", "content", "text", "output", "input",
-            "chain_of_thought", "explanation", "rationale"
+            "prompt",
+            "response",
+            "reasoning",
+            "thought",
+            "message",
+            "content",
+            "text",
+            "output",
+            "input",
+            "chain_of_thought",
+            "explanation",
+            "rationale",
         }
 
         for key, value in v.items():
@@ -478,33 +489,33 @@ class AgentQualitySignalCreate(BaseModel):
     """
 
     signal_id: UUID = Field(default_factory=uuid4)
-    step_id: Optional[UUID] = Field(None, description="Optional step where signal was observed")
+    step_id: UUID | None = Field(None, description="Optional step where signal was observed")
     signal_type: str = Field(..., min_length=1, max_length=100)
     signal_code: str = Field(..., min_length=1, max_length=100, description="Specific signal code")
     value: bool = Field(..., description="Signal present (True) or absent (False)")
-    weight: Optional[float] = Field(None, ge=0.0, le=1.0, description="Signal weight for correlation 0.0-1.0")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Structured metadata only")
+    weight: float | None = Field(
+        None, ge=0.0, le=1.0, description="Signal weight for correlation 0.0-1.0"
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Structured metadata only")
 
     @field_validator("signal_type")
     @classmethod
     def validate_signal_type_enum(cls, v: str) -> str:
         """Validate signal_type is a valid enum value."""
-        from server.enums import validate_signal_type
+        from server.models.enums import validate_signal_type
 
         if not validate_signal_type(v):
-            from server.enums import SignalType
+            from server.models.enums import SignalType
+
             valid_types = [st.value for st in SignalType]
-            raise ValueError(
-                f"Invalid signal_type: '{v}'. "
-                f"Must be one of: {valid_types}"
-            )
+            raise ValueError(f"Invalid signal_type: '{v}'. Must be one of: {valid_types}")
         return v
 
     @field_validator("signal_code")
     @classmethod
     def validate_signal_code_for_type(cls, v: str, info) -> str:
         """Validate signal_code is valid for the signal_type."""
-        from server.enums import validate_signal_code, get_valid_signal_codes
+        from server.models.enums import get_valid_signal_codes, validate_signal_code
 
         if "signal_type" in info.data:
             signal_type = info.data["signal_type"]
@@ -518,7 +529,7 @@ class AgentQualitySignalCreate(BaseModel):
 
     @field_validator("metadata")
     @classmethod
-    def validate_metadata_privacy(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_metadata_privacy(cls, v: dict[str, Any]) -> dict[str, Any]:
         """
         Validate metadata contains no sensitive data.
 
@@ -527,9 +538,18 @@ class AgentQualitySignalCreate(BaseModel):
         Only primitive types allowed
         """
         BLOCKED_KEYS = {
-            "prompt", "response", "reasoning", "thought",
-            "message", "content", "text", "output", "input",
-            "chain_of_thought", "explanation", "rationale"
+            "prompt",
+            "response",
+            "reasoning",
+            "thought",
+            "message",
+            "content",
+            "text",
+            "output",
+            "input",
+            "chain_of_thought",
+            "explanation",
+            "rationale",
         }
 
         for key, value in v.items():
@@ -571,18 +591,18 @@ class AgentRunCreate(BaseModel):
     environment: str = Field(default="production", max_length=50)
     status: RunStatus
     started_at: datetime
-    ended_at: Optional[datetime] = None
+    ended_at: datetime | None = None
 
-    steps: List[AgentStepCreate] = Field(default_factory=list)
-    failure: Optional[AgentFailureCreate] = None
+    steps: list[AgentStepCreate] = Field(default_factory=list)
+    failure: AgentFailureCreate | None = None
 
     # Optional decision and quality signal tracking
-    decisions: Optional[List[AgentDecisionCreate]] = Field(default_factory=list)
-    quality_signals: Optional[List[AgentQualitySignalCreate]] = Field(default_factory=list)
+    decisions: list[AgentDecisionCreate] | None = Field(default_factory=list)
+    quality_signals: list[AgentQualitySignalCreate] | None = Field(default_factory=list)
 
     @field_validator("steps")
     @classmethod
-    def validate_step_sequence(cls, v: List[AgentStepCreate]) -> List[AgentStepCreate]:
+    def validate_step_sequence(cls, v: list[AgentStepCreate]) -> list[AgentStepCreate]:
         """
         Ensure steps are properly sequenced (0, 1, 2, ...).
 
@@ -604,7 +624,7 @@ class AgentRunCreate(BaseModel):
 
     @field_validator("ended_at")
     @classmethod
-    def validate_run_timing(cls, v: Optional[datetime], info) -> Optional[datetime]:
+    def validate_run_timing(cls, v: datetime | None, info) -> datetime | None:
         """Ensure ended_at >= started_at"""
         if v and "started_at" in info.data and v < info.data["started_at"]:
             raise ValueError("ended_at must be >= started_at")
@@ -612,7 +632,9 @@ class AgentRunCreate(BaseModel):
 
     @field_validator("failure")
     @classmethod
-    def validate_failure_on_failed_runs(cls, v: Optional[AgentFailureCreate], info) -> Optional[AgentFailureCreate]:
+    def validate_failure_on_failed_runs(
+        cls, v: AgentFailureCreate | None, info
+    ) -> AgentFailureCreate | None:
         """
         Ensure failed runs have a failure object.
 
@@ -639,7 +661,9 @@ class AgentStepResponse(BaseModel):
     latency_ms: int
     started_at: datetime
     ended_at: datetime
-    metadata: Dict[str, Any] = Field(validation_alias="step_metadata", serialization_alias="metadata")
+    metadata: dict[str, Any] = Field(
+        validation_alias="step_metadata", serialization_alias="metadata"
+    )
     created_at: datetime
 
     class Config:
@@ -652,7 +676,7 @@ class AgentFailureResponse(BaseModel):
 
     failure_id: UUID
     run_id: UUID
-    step_id: Optional[UUID]
+    step_id: UUID | None
     failure_type: FailureType
     failure_code: str
     message: str
@@ -671,15 +695,15 @@ class AgentRunResponse(BaseModel):
     environment: str
     status: RunStatus
     started_at: datetime
-    ended_at: Optional[datetime]
+    ended_at: datetime | None
     created_at: datetime
 
-    steps: List[AgentStepResponse] = []
-    failures: List[AgentFailureResponse] = []
+    steps: list[AgentStepResponse] = []
+    failures: list[AgentFailureResponse] = []
 
     # Optional decision and quality signal data
-    decisions: List["AgentDecisionResponse"] = []
-    quality_signals: List["AgentQualitySignalResponse"] = []
+    decisions: list["AgentDecisionResponse"] = []
+    quality_signals: list["AgentQualitySignalResponse"] = []
 
     class Config:
         from_attributes = True
@@ -687,17 +711,20 @@ class AgentRunResponse(BaseModel):
 
 # Decision & Quality Signal Response Models
 
+
 class AgentDecisionResponse(BaseModel):
     """Schema for returning decision data (query API)"""
 
     decision_id: UUID
     run_id: UUID
-    step_id: Optional[UUID]
+    step_id: UUID | None
     decision_type: str
     selected: str
     reason_code: str
-    confidence: Optional[float]
-    metadata: Dict[str, Any] = Field(validation_alias="decision_metadata", serialization_alias="metadata")
+    confidence: float | None
+    metadata: dict[str, Any] = Field(
+        validation_alias="decision_metadata", serialization_alias="metadata"
+    )
     recorded_at: datetime
     created_at: datetime
 
@@ -711,15 +738,125 @@ class AgentQualitySignalResponse(BaseModel):
 
     signal_id: UUID
     run_id: UUID
-    step_id: Optional[UUID]
+    step_id: UUID | None
     signal_type: str
     signal_code: str
     value: bool
-    weight: Optional[float]
-    metadata: Dict[str, Any] = Field(validation_alias="signal_metadata", serialization_alias="metadata")
+    weight: float | None
+    metadata: dict[str, Any] = Field(
+        validation_alias="signal_metadata", serialization_alias="metadata"
+    )
     recorded_at: datetime
     created_at: datetime
 
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+# ============================================================================
+# Drift Detection Models
+# ============================================================================
+
+
+class BehaviorProfileDB(Base):
+    """
+    SQLAlchemy model for behavior_profiles table.
+    Statistical snapshots of agent behavior over time windows.
+    """
+
+    __tablename__ = "behavior_profiles"
+
+    from sqlalchemy import Column, DateTime, Integer, String
+    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.dialects.postgresql import UUID as PGUUID
+
+    profile_id = Column(PGUUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    agent_id = Column(String(255), nullable=False)
+    agent_version = Column(String(100), nullable=False)
+    environment = Column(String(50), nullable=False)
+
+    window_start = Column(DateTime, nullable=False)
+    window_end = Column(DateTime, nullable=False)
+    sample_size = Column(Integer, nullable=False)
+
+    decision_distributions = Column(JSONB, nullable=False, default={})
+    signal_distributions = Column(JSONB, nullable=False, default={})
+    latency_stats = Column(JSONB, nullable=False, default={})
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class BehaviorBaselineDB(Base):
+    """
+    SQLAlchemy model for behavior_baselines table.
+    Immutable snapshots of expected agent behavior.
+    """
+
+    __tablename__ = "behavior_baselines"
+
+    from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
+    from sqlalchemy.dialects.postgresql import UUID as PGUUID
+
+    baseline_id = Column(PGUUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    profile_id = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("behavior_profiles.profile_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    agent_id = Column(String(255), nullable=False, index=True)
+    agent_version = Column(String(100), nullable=False, index=True)
+    environment = Column(String(50), nullable=False, index=True)
+
+    baseline_type = Column(String(50), nullable=False)
+    approved_by = Column(String(255), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    description = Column(String(200), nullable=True)
+
+    is_active = Column(Boolean, default=False, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class BehaviorDriftDB(Base):
+    """
+    SQLAlchemy model for behavior_drift table.
+    Detected behavioral drift events.
+    """
+
+    __tablename__ = "behavior_drift"
+
+    from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+    from sqlalchemy.dialects.postgresql import UUID as PGUUID
+
+    drift_id = Column(PGUUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    baseline_id = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("behavior_baselines.baseline_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    agent_id = Column(String(255), nullable=False, index=True)
+    agent_version = Column(String(100), nullable=False, index=True)
+    environment = Column(String(50), nullable=False, index=True)
+
+    drift_type = Column(String(50), nullable=False, index=True)
+    metric = Column(String(255), nullable=False)
+
+    baseline_value = Column(Float, nullable=False)
+    observed_value = Column(Float, nullable=False)
+    delta = Column(Float, nullable=False)
+    delta_percent = Column(Float, nullable=False)
+
+    significance = Column(Float, nullable=False)
+    test_method = Column(String(50), nullable=False)
+
+    severity = Column(String(20), nullable=False, index=True)
+
+    detected_at = Column(DateTime, nullable=False, index=True)
+    observation_window_start = Column(DateTime, nullable=False)
+    observation_window_end = Column(DateTime, nullable=False)
+    observation_sample_size = Column(Integer, nullable=False)
+
+    resolved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

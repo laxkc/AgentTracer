@@ -12,83 +12,15 @@ Constraints:
 - Language must be neutral ("observed change", not "degraded")
 """
 
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-from uuid import UUID
-import yaml
 import os
+from datetime import datetime
 
-from sqlalchemy.orm import Session
+import yaml
 from scipy import stats
+from sqlalchemy.orm import Session
 
-from server.behavior_profiles import BehaviorProfileBuilder, InsufficientDataError
-from server.baselines import BehaviorBaselineDB
-from server.models import Base
-
-
-# Database model for behavior_drift
-class BehaviorDriftDB(Base):
-    """
-    SQLAlchemy model for behavior_drift table.
-    """
-    __tablename__ = "behavior_drift"
-
-    from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
-    from sqlalchemy.dialects.postgresql import UUID as PGUUID
-
-    drift_id = Column(PGUUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
-    baseline_id = Column(PGUUID(as_uuid=True), ForeignKey("behavior_baselines.baseline_id", ondelete="CASCADE"), nullable=False)
-
-    agent_id = Column(String(255), nullable=False, index=True)
-    agent_version = Column(String(100), nullable=False, index=True)
-    environment = Column(String(50), nullable=False, index=True)
-
-    drift_type = Column(String(50), nullable=False, index=True)
-    metric = Column(String(255), nullable=False)
-
-    baseline_value = Column(Float, nullable=False)
-    observed_value = Column(Float, nullable=False)
-    delta = Column(Float, nullable=False)
-    delta_percent = Column(Float, nullable=False)
-
-    significance = Column(Float, nullable=False)
-    test_method = Column(String(50), nullable=False)
-
-    severity = Column(String(20), nullable=False, index=True)
-
-    detected_at = Column(DateTime, nullable=False, index=True)
-    observation_window_start = Column(DateTime, nullable=False)
-    observation_window_end = Column(DateTime, nullable=False)
-    observation_sample_size = Column(Integer, nullable=False)
-
-    resolved_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-
-# Database model for behavior_profiles (minimal definition for querying)
-class BehaviorProfileDB(Base):
-    """
-    SQLAlchemy model for behavior_profiles table.
-    """
-    __tablename__ = "behavior_profiles"
-
-    from sqlalchemy import Column, DateTime, Integer, String
-    from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
-
-    profile_id = Column(PGUUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
-    agent_id = Column(String(255), nullable=False)
-    agent_version = Column(String(100), nullable=False)
-    environment = Column(String(50), nullable=False)
-
-    window_start = Column(DateTime, nullable=False)
-    window_end = Column(DateTime, nullable=False)
-    sample_size = Column(Integer, nullable=False)
-
-    decision_distributions = Column(JSONB, nullable=False, default={})
-    signal_distributions = Column(JSONB, nullable=False, default={})
-    latency_stats = Column(JSONB, nullable=False, default={})
-
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+from server.core.behavior_profiles import BehaviorProfileBuilder
+from server.models.database import BehaviorBaselineDB, BehaviorDriftDB, BehaviorProfileDB
 
 
 class DriftDetectionEngine:
@@ -104,7 +36,7 @@ class DriftDetectionEngine:
     Drift is purely observational - describes change, not quality.
     """
 
-    def __init__(self, db: Session, config_path: Optional[str] = None):
+    def __init__(self, db: Session, config_path: str | None = None):
         """
         Initialize drift detection engine.
 
@@ -121,7 +53,7 @@ class DriftDetectionEngine:
         observed_window_start: datetime,
         observed_window_end: datetime,
         min_sample_size: int,
-    ) -> Dict:
+    ) -> dict:
         """
         Build profile for observed window.
 
@@ -175,10 +107,10 @@ class DriftDetectionEngine:
         self,
         baseline: BehaviorBaselineDB,
         baseline_profile: BehaviorProfileDB,
-        observed_profile: Dict,
+        observed_profile: dict,
         observed_window_start: datetime,
         observed_window_end: datetime,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Collect drift records across all dimensions.
 
@@ -236,7 +168,7 @@ class DriftDetectionEngine:
         observed_window_start: datetime,
         observed_window_end: datetime,
         min_sample_size: int = 100,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Detect drift by comparing baseline to observed behavior.
 
@@ -346,14 +278,14 @@ class DriftDetectionEngine:
         self,
         baseline: BehaviorBaselineDB,
         decision_type: str,
-        baseline_dist: Dict,
-        observed_dist: Dict,
+        baseline_dist: dict,
+        observed_dist: dict,
         p_value: float,
         test_method: str,
         observed_window_start: datetime,
         observed_window_end: datetime,
         observed_sample_size: int,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Check each option in a decision type for drift.
 
@@ -409,11 +341,11 @@ class DriftDetectionEngine:
         self,
         baseline: BehaviorBaselineDB,
         baseline_profile: BehaviorProfileDB,
-        observed_profile: Dict,
+        observed_profile: dict,
         observed_window_start: datetime,
         observed_window_end: datetime,
         observed_sample_size: int,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Compare decision distributions using Chi-square test.
 
@@ -458,14 +390,14 @@ class DriftDetectionEngine:
         self,
         baseline: BehaviorBaselineDB,
         signal_type: str,
-        baseline_dist: Dict,
-        observed_dist: Dict,
+        baseline_dist: dict,
+        observed_dist: dict,
         p_value: float,
         test_method: str,
         observed_window_start: datetime,
         observed_window_end: datetime,
         observed_sample_size: int,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Check each signal code for drift.
 
@@ -521,11 +453,11 @@ class DriftDetectionEngine:
         self,
         baseline: BehaviorBaselineDB,
         baseline_profile: BehaviorProfileDB,
-        observed_profile: Dict,
+        observed_profile: dict,
         observed_window_start: datetime,
         observed_window_end: datetime,
         observed_sample_size: int,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Compare signal distributions using Chi-square test.
 
@@ -575,7 +507,7 @@ class DriftDetectionEngine:
         observed_window_start: datetime,
         observed_window_end: datetime,
         observed_sample_size: int,
-    ) -> Optional[BehaviorDriftDB]:
+    ) -> BehaviorDriftDB | None:
         """
         Check a single latency metric for drift.
 
@@ -596,7 +528,7 @@ class DriftDetectionEngine:
             return None
 
         delta = observed_value - baseline_value
-        delta_percent = (delta / baseline_value * 100)
+        delta_percent = delta / baseline_value * 100
 
         # Use percent threshold (no statistical test for latency)
         if self._is_significant(1.0, abs(delta_percent), "latency"):
@@ -624,11 +556,11 @@ class DriftDetectionEngine:
         self,
         baseline: BehaviorBaselineDB,
         baseline_profile: BehaviorProfileDB,
-        observed_profile: Dict,
+        observed_profile: dict,
         observed_window_start: datetime,
         observed_window_end: datetime,
         observed_sample_size: int,
-    ) -> List[BehaviorDriftDB]:
+    ) -> list[BehaviorDriftDB]:
         """
         Compare latency statistics using percent threshold.
 
@@ -661,9 +593,7 @@ class DriftDetectionEngine:
 
         return drift_records
 
-    def _run_chi_square_test(
-        self, baseline_dist: Dict, observed_dist: Dict
-    ) -> Tuple[float, str]:
+    def _run_chi_square_test(self, baseline_dist: dict, observed_dist: dict) -> tuple[float, str]:
         """
         Run Chi-square test on two distributions.
 
@@ -690,17 +620,13 @@ class DriftDetectionEngine:
 
         # Run Chi-square test
         try:
-            _, p_value = stats.chisquare(
-                f_obs=observed_counts, f_exp=baseline_counts
-            )
+            _, p_value = stats.chisquare(f_obs=observed_counts, f_exp=baseline_counts)
             return (p_value, "chi_square")
         except (ValueError, ZeroDivisionError):
             # If test fails, return non-significant p-value
             return (1.0, "chi_square")
 
-    def _is_significant(
-        self, p_value: float, delta_percent: float, drift_type: str
-    ) -> bool:
+    def _is_significant(self, p_value: float, delta_percent: float, drift_type: str) -> bool:
         """
         Determine if drift is statistically significant.
 
@@ -752,7 +678,7 @@ class DriftDetectionEngine:
         else:
             return "high"
 
-    def _load_thresholds(self, config_path: Optional[str] = None) -> Dict:
+    def _load_thresholds(self, config_path: str | None = None) -> dict:
         """
         Load drift detection thresholds from config.
 
@@ -784,7 +710,7 @@ class DriftDetectionEngine:
         # Load from file if provided
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     loaded_config = yaml.safe_load(f)
                     if loaded_config:
                         # Merge with defaults
@@ -801,14 +727,15 @@ class DriftDetectionEngine:
 
 # Convenience function
 
+
 def detect_drift_for_baseline(
     db: Session,
     baseline: BehaviorBaselineDB,
     observed_window_start: datetime,
     observed_window_end: datetime,
     min_sample_size: int = 100,
-    config_path: Optional[str] = None,
-) -> List[BehaviorDriftDB]:
+    config_path: str | None = None,
+) -> list[BehaviorDriftDB]:
     """
     Convenience function to detect drift for a baseline.
 

@@ -25,9 +25,9 @@ All development completed January 2026. Platform is production-ready.
 - Performance testing (< 200ms p99)
 
 ### Implementation Files
-- server/models.py - SQLAlchemy + Pydantic models with privacy validation
-- server/ingest_api.py - Write-only ingest API
-- server/query_api.py - Read-only query API
+- server/models/database.py - SQLAlchemy + Pydantic models with privacy validation
+- server/api/ingest.py - Write-only ingest API
+- server/api/query.py - Read-only query API
 - sdk/agenttrace.py - Client SDK
 - server/db/schema.sql - PostgreSQL schema with indexes
 - server/db/setup.sh - Database setup script
@@ -54,8 +54,8 @@ All development completed January 2026. Platform is production-ready.
 - Signal weighting system
 
 ### Implementation Files
-- Extended server/models.py with AgentDecision and AgentQualitySignal
-- Extended server/query_api.py with decision/signal endpoints
+- Extended server/models/database.py with AgentDecision and AgentQualitySignal
+- Extended server/api/query.py with decision/signal endpoints
 - SDK support in sdk/agenttrace.py
 - examples/agent_with_decisions_example.py
 
@@ -78,11 +78,11 @@ All development completed January 2026. Platform is production-ready.
 - Immutable baselines for auditability
 
 ### Implementation Files
-- server/behavior_profiles.py - Statistical profile builder
-- server/baselines.py - Baseline management
-- server/drift_engine.py - Drift detection engine
-- server/alerts.py - Alert emission
-- server/query_drift.py - Drift query API
+- server/core/behavior_profiles.py - Statistical profile builder
+- server/core/baselines.py - Baseline management
+- server/core/drift_engine.py - Drift detection engine
+- server/core/alerts.py - Alert emission
+- server/api/routers/drift.py - Drift query API
 - examples/drift_detection_example.py
 
 ### Design Principles
@@ -106,14 +106,14 @@ All development completed January 2026. Platform is production-ready.
 ## Files Created
 
 ### Backend (server/)
-1. server/models.py
-2. server/ingest_api.py
-3. server/query_api.py
-4. server/behavior_profiles.py
-5. server/baselines.py
-6. server/drift_engine.py
-7. server/alerts.py
-8. server/query_drift.py
+1. server/models/database.py
+2. server/api/ingest.py
+3. server/api/query.py
+4. server/core/behavior_profiles.py
+5. server/core/baselines.py
+6. server/core/drift_engine.py
+7. server/core/alerts.py
+8. server/api/routers/drift.py
 9. server/database.py
 
 ### SDK

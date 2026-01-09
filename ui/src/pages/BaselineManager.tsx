@@ -117,7 +117,7 @@ const BaselineManager: React.FC = () => {
       return;
     }
 
-    const result = await createMutation.mutate('/v1/phase3/baselines', {
+    const result = await createMutation.mutate('/v1/drift/baselines', {
       ...baselineFormData,
       window_start: new Date(baselineFormData.window_start).toISOString(),
       window_end: new Date(baselineFormData.window_end).toISOString(),
@@ -143,7 +143,7 @@ const BaselineManager: React.FC = () => {
   };
 
   const handleActivate = async (baselineId: string) => {
-    const result = await activateMutation.mutate(`/v1/phase3/baselines/${baselineId}/activate`);
+    const result = await activateMutation.mutate(`/v1/drift/baselines/${baselineId}/activate`);
     if (result) {
       showToast.success('Baseline activated');
       refetch();
@@ -151,7 +151,7 @@ const BaselineManager: React.FC = () => {
   };
 
   const handleDeactivate = async (baselineId: string) => {
-    const result = await deactivateMutation.mutate(`/v1/phase3/baselines/${baselineId}/deactivate`);
+    const result = await deactivateMutation.mutate(`/v1/drift/baselines/${baselineId}/deactivate`);
     if (result) {
       showToast.success('Baseline deactivated');
       refetch();

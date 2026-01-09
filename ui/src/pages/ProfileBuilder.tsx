@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
+import { API_CONFIG, API_ENDPOINTS } from "../config/api";
 import { Select } from "../components/ui/select";
 
 interface BehaviorProfile {
@@ -63,7 +64,7 @@ const ProfileBuilder: React.FC = () => {
       }
 
       // Build profile via baseline creation endpoint (it builds profile first)
-      const response = await fetch("http://localhost:8001/v1/phase3/baselines", {
+      const response = await fetch(`${API_CONFIG.QUERY_API_BASE_URL}${API_ENDPOINTS.BASELINES}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -89,7 +90,7 @@ const ProfileBuilder: React.FC = () => {
 
       // Fetch the profile details
       const profileResponse = await fetch(
-        `http://localhost:8001/v1/phase3/profiles/${baseline.profile_id}`
+        `${API_CONFIG.QUERY_API_BASE_URL}${API_ENDPOINTS.PROFILE_DETAIL(baseline.profile_id)}`
       );
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();

@@ -15,20 +15,18 @@ from datetime import datetime, timedelta
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
+from backend.alerts import AlertEmitter
+from backend.baselines import BaselineManager
+from backend.behavior_profiles import BehaviorProfileBuilder
+from backend.drift_engine import BehaviorProfileDB, DriftDetectionEngine
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from backend.behavior_profiles import BehaviorProfileBuilder
-from backend.baselines import BaselineManager
-from backend.drift_engine import DriftDetectionEngine, BehaviorProfileDB
-from backend.alerts import AlertEmitter
 
 
 def setup_database():
     """Initialize database connection."""
     DATABASE_URL = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5433/agent_observability"
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/agent_observability"
     )
 
     engine = create_engine(DATABASE_URL, echo=False)
@@ -44,9 +42,9 @@ def example_create_baseline(db, agent_id, agent_version, environment):
     This should be run after an agent has stabilized in production
     to establish a baseline for drift detection.
     """
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"EXAMPLE 1: Creating Baseline for {agent_id} v{agent_version}")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     # Step 1: Build a behavioral profile from the last 7 days
     print("Step 1: Building behavioral profile from last 7 days...")
@@ -114,9 +112,9 @@ def example_detect_drift(db, agent_id, agent_version, environment):
     This should be run periodically (e.g., hourly or daily) to
     detect behavioral changes in your agents.
     """
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"EXAMPLE 2: Detecting Drift for {agent_id} v{agent_version}")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     # Step 1: Get active baseline
     print("Step 1: Finding active baseline...")
@@ -145,14 +143,16 @@ def example_detect_drift(db, agent_id, agent_version, environment):
         min_sample_size=50,  # Require at least 50 runs for comparison
     )
 
-    print(f"  ✓ Drift detection complete")
+    print("  ✓ Drift detection complete")
     print(f"  - Drift events found: {len(drift_events)}")
 
     if drift_events:
         print("\n  Detected drift:")
         for drift in drift_events:
             change_verb = "increased" if drift.delta > 0 else "decreased"
-            print(f"  - {drift.drift_type}.{drift.metric}: {change_verb} by {drift.delta_percent:+.1f}%")
+            print(
+                f"  - {drift.drift_type}.{drift.metric}: {change_verb} by {drift.delta_percent:+.1f}%"
+            )
             print(f"    Severity: {drift.severity}, Significance: p={drift.significance:.4f}")
     else:
         print("\n  No significant drift detected. Agent behavior is stable.")
@@ -166,9 +166,9 @@ def example_emit_alerts(drift_events):
 
     Alerts will be sent to configured channels (log, webhook, Slack, etc.)
     """
-    print(f"\n{'='*80}")
-    print(f"EXAMPLE 3: Emitting Alerts for Drift Events")
-    print(f"{'='*80}\n")
+    print(f"\n{'=' * 80}")
+    print("EXAMPLE 3: Emitting Alerts for Drift Events")
+    print(f"{'=' * 80}\n")
 
     if not drift_events:
         print("  No drift events to alert on.")
@@ -181,10 +181,10 @@ def example_emit_alerts(drift_events):
     for drift in drift_events:
         print(f"\n  Alerting on: {drift.drift_type}.{drift.metric}")
         emitter.emit(drift)
-        print(f"  ✓ Alert emitted")
+        print("  ✓ Alert emitted")
 
-    print(f"\nAll alerts emitted successfully!")
-    print(f"Check your configured channels (logs, Slack, webhooks, etc.)")
+    print("\nAll alerts emitted successfully!")
+    print("Check your configured channels (logs, Slack, webhooks, etc.)")
 
 
 def example_resolve_drift(db, drift_id):
@@ -194,16 +194,14 @@ def example_resolve_drift(db, drift_id):
     Once you've investigated and addressed a drift event, mark it as resolved
     to remove it from active monitoring.
     """
-    print(f"\n{'='*80}")
-    print(f"EXAMPLE 4: Resolving Drift Event")
-    print(f"{'='*80}\n")
+    print(f"\n{'=' * 80}")
+    print("EXAMPLE 4: Resolving Drift Event")
+    print(f"{'=' * 80}\n")
 
     from backend.drift_engine import BehaviorDriftDB
 
     # Find drift event
-    drift = db.query(BehaviorDriftDB).filter(
-        BehaviorDriftDB.drift_id == drift_id
-    ).first()
+    drift = db.query(BehaviorDriftDB).filter(BehaviorDriftDB.drift_id == drift_id).first()
 
     if not drift:
         print(f"  ✗ Drift event {drift_id} not found")
@@ -217,7 +215,7 @@ def example_resolve_drift(db, drift_id):
     drift.resolved_at = datetime.utcnow()
     db.commit()
 
-    print(f"  ✓ Drift event resolved")
+    print("  ✓ Drift event resolved")
     print(f"  - Drift ID: {drift.drift_id}")
     print(f"  - Metric: {drift.drift_type}.{drift.metric}")
     print(f"  - Resolved at: {drift.resolved_at}")
@@ -230,9 +228,9 @@ def example_query_api():
     Shows how to retrieve drift events, baselines, and summaries
     programmatically.
     """
-    print(f"\n{'='*80}")
-    print(f"EXAMPLE 5: Querying Phase 3 Data via API")
-    print(f"{'='*80}\n")
+    print(f"\n{'=' * 80}")
+    print("EXAMPLE 5: Querying Phase 3 Data via API")
+    print(f"{'=' * 80}\n")
 
     import requests
 
@@ -245,15 +243,17 @@ def example_query_api():
 
     print(f"  ✓ Found {len(drift_events)} unresolved drift events")
     for drift in drift_events[:3]:  # Show first 3
-        print(f"  - {drift['agent_id']} v{drift['agent_version']}: "
-              f"{drift['metric']} ({drift['severity']})")
+        print(
+            f"  - {drift['agent_id']} v{drift['agent_version']}: "
+            f"{drift['metric']} ({drift['severity']})"
+        )
 
     # Query 2: Get drift summary for last 7 days
     print("\nQuery 2: Get drift summary for last 7 days...")
     response = requests.get(f"{base_url}/drift/summary?days=7")
     summary = response.json()
 
-    print(f"  ✓ Summary retrieved")
+    print("  ✓ Summary retrieved")
     print(f"  - Total drift events: {summary['total_drift_events']}")
     print(f"  - Unresolved: {summary['unresolved_drift_events']}")
     print(f"  - By severity: {summary['drift_by_severity']}")
@@ -266,15 +266,16 @@ def example_query_api():
 
     print(f"  ✓ Found {len(baselines)} active baselines")
     for baseline in baselines[:3]:  # Show first 3
-        print(f"  - {baseline['agent_id']} v{baseline['agent_version']} "
-              f"({baseline['environment']})")
+        print(
+            f"  - {baseline['agent_id']} v{baseline['agent_version']} ({baseline['environment']})"
+        )
 
 
 def main():
     """Run all examples."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Phase 3 - Usage Examples")
-    print("="*80)
+    print("=" * 80)
 
     # Setup
     db = setup_database()
@@ -286,7 +287,7 @@ def main():
 
     try:
         # Example 1: Create baseline (run once per agent version)
-        baseline = example_create_baseline(db, agent_id, agent_version, environment)
+        _baseline = example_create_baseline(db, agent_id, agent_version, environment)
 
         # Example 2: Detect drift (run periodically, e.g., hourly)
         drift_events = example_detect_drift(db, agent_id, agent_version, environment)
@@ -302,13 +303,14 @@ def main():
         # Example 5: Query via API
         example_query_api()
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("All examples completed successfully!")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         db.close()

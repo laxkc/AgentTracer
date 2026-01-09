@@ -10,9 +10,11 @@ Privacy guarantee: No prompts, responses, or reasoning text stored.
 Only structured enums and numeric values.
 """
 
-import time
 import random
+import time
+
 from sdk.agenttrace import AgentTracer
+
 
 def simulate_customer_support_agent():
     """
@@ -28,7 +30,7 @@ def simulate_customer_support_agent():
         agent_id="customer_support_agent",
         agent_version="2.0.0",  # Phase 2 version
         api_url="http://localhost:8000",
-        environment="production"
+        environment="production",
     )
 
     print("🚀 Starting customer support agent run (with Phase 2 tracking)...\n")
@@ -72,12 +74,14 @@ def simulate_customer_support_agent():
                 candidates=["cache", "api", "database"],
                 confidence=confidence,
                 step_id=step.step_id,
-                metadata={"cache_age_minutes": cache_age_minutes}
+                metadata={"cache_age_minutes": cache_age_minutes},
             )
 
         # Step 3: Retrieve data
         print(f"\n📥 Step 3: Retrieving data from {selected_source}...")
-        with run.step("retrieve" if selected_source == "cache" else "tool", "fetch_order_data") as step:
+        with run.step(
+            "retrieve" if selected_source == "cache" else "tool", "fetch_order_data"
+        ) as step:
             time.sleep(0.1)
 
             # Simulate retrieval
@@ -87,13 +91,15 @@ def simulate_customer_support_agent():
             if retrieval_success:
                 print(f"   ✓ Retrieved {num_results} orders successfully")
             else:
-                print(f"   ✗ No results found")
+                print("   ✗ No results found")
 
-            step.add_metadata({
-                "source": selected_source,
-                "result_count": num_results,
-                "success": retrieval_success
-            })
+            step.add_metadata(
+                {
+                    "source": selected_source,
+                    "result_count": num_results,
+                    "success": retrieval_success,
+                }
+            )
 
             # Phase 2: Record quality signal for retrieval
             if num_results == 0:
@@ -102,7 +108,7 @@ def simulate_customer_support_agent():
                     signal_code="no_results",
                     value=True,
                     step_id=step.step_id,
-                    metadata={"query_type": query_type}
+                    metadata={"query_type": query_type},
                 )
                 print("   ⚠️  Quality signal: empty_retrieval")
             else:
@@ -111,7 +117,7 @@ def simulate_customer_support_agent():
                     signal_code="first_attempt",
                     value=True,
                     step_id=step.step_id,
-                    metadata={"result_count": num_results}
+                    metadata={"result_count": num_results},
                 )
                 print("   ✓ Quality signal: tool_success")
 
@@ -136,7 +142,7 @@ def simulate_customer_support_agent():
                 signal_code=schema_result,
                 value=schema_valid,
                 weight=0.9,  # High importance for schema validation
-                step_id=step.step_id
+                step_id=step.step_id,
             )
 
         # Step 5: Decide on response mode
@@ -164,7 +170,7 @@ def simulate_customer_support_agent():
                 candidates=["streaming", "batch"],
                 confidence=confidence,
                 step_id=step.step_id,
-                metadata={"result_count": num_results}
+                metadata={"result_count": num_results},
             )
 
         # Step 6: Generate response
@@ -185,7 +191,7 @@ def simulate_customer_support_agent():
                     signal_code="exceeded_threshold",
                     value=True,
                     step_id=step.step_id,
-                    metadata={"latency_ms": latency_ms, "threshold_ms": 150}
+                    metadata={"latency_ms": latency_ms, "threshold_ms": 150},
                 )
                 print("   ⚠️  Quality signal: latency_threshold exceeded")
             else:
@@ -194,7 +200,7 @@ def simulate_customer_support_agent():
                     signal_code="under_threshold",
                     value=True,
                     step_id=step.step_id,
-                    metadata={"latency_ms": latency_ms}
+                    metadata={"latency_ms": latency_ms},
                 )
 
     print("\n✅ Agent run completed successfully!")
@@ -212,7 +218,7 @@ def simulate_agent_with_retry_decision():
         agent_id="api_caller_agent",
         agent_version="2.0.0",
         api_url="http://localhost:8000",
-        environment="production"
+        environment="production",
     )
 
     print("\n🔄 Retry Decision Example\n")
@@ -229,7 +235,7 @@ def simulate_agent_with_retry_decision():
                 success = random.random() > 0.6  # 40% success rate
 
                 if success:
-                    print(f"   ✓ API call succeeded")
+                    print("   ✓ API call succeeded")
                     step.add_metadata({"attempt": attempt + 1, "success": True})
 
                     # Record quality signal
@@ -239,7 +245,7 @@ def simulate_agent_with_retry_decision():
                         signal_code=signal_code,
                         value=True,
                         step_id=step.step_id,
-                        metadata={"attempt_number": attempt + 1}
+                        metadata={"attempt_number": attempt + 1},
                     )
 
                     if attempt > 0:
@@ -247,12 +253,12 @@ def simulate_agent_with_retry_decision():
                             signal_type="retry_occurred",
                             signal_code="single_retry" if attempt == 1 else "multiple_retries",
                             value=True,
-                            step_id=step.step_id
+                            step_id=step.step_id,
                         )
 
                     break
                 else:
-                    print(f"   ✗ API call failed (rate limited)")
+                    print("   ✗ API call failed (rate limited)")
                     step.add_metadata({"attempt": attempt + 1, "success": False})
 
                     # Record failure signal
@@ -260,7 +266,7 @@ def simulate_agent_with_retry_decision():
                         signal_type="tool_failure",
                         signal_code="rate_limited",
                         value=True,
-                        step_id=step.step_id
+                        step_id=step.step_id,
                     )
 
                     if attempt < 2:  # Not last attempt
@@ -275,10 +281,10 @@ def simulate_agent_with_retry_decision():
                                 reason_code="rate_limit_encountered",
                                 confidence=0.8,
                                 step_id=decision_step.step_id,
-                                metadata={"backoff_seconds": 2 ** attempt}
+                                metadata={"backoff_seconds": 2**attempt},
                             )
 
-                        time.sleep(2 ** attempt)  # Exponential backoff
+                        time.sleep(2**attempt)  # Exponential backoff
                     else:
                         # No retry - terminal error
                         print("   🛑 Max retries reached, giving up")
@@ -287,13 +293,13 @@ def simulate_agent_with_retry_decision():
                             selected="no_retry",
                             reason_code="retry_budget_exhausted",
                             confidence=1.0,
-                            step_id=step.step_id
+                            step_id=step.step_id,
                         )
 
                         run.record_failure(
                             failure_type="tool",
                             failure_code="max_retries_exceeded",
-                            message="API call failed after 3 attempts (rate limited)"
+                            message="API call failed after 3 attempts (rate limited)",
                         )
 
     print("\n✅ Retry example completed!")

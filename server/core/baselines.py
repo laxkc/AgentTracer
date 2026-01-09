@@ -12,54 +12,30 @@ Constraints:
 """
 
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from server.models import Base
-
-
-# Database model for behavior_baselines
-class BehaviorBaselineDB(Base):
-    """
-    SQLAlchemy model for behavior_baselines table.
-    """
-    __tablename__ = "behavior_baselines"
-
-    from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
-    from sqlalchemy.dialects.postgresql import UUID as PGUUID
-
-    baseline_id = Column(PGUUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
-    profile_id = Column(PGUUID(as_uuid=True), ForeignKey("behavior_profiles.profile_id", ondelete="CASCADE"), nullable=False)
-
-    agent_id = Column(String(255), nullable=False, index=True)
-    agent_version = Column(String(100), nullable=False, index=True)
-    environment = Column(String(50), nullable=False, index=True)
-
-    baseline_type = Column(String(50), nullable=False)
-    approved_by = Column(String(255), nullable=True)
-    approved_at = Column(DateTime, nullable=True)
-    description = Column(String(200), nullable=True)
-
-    is_active = Column(Boolean, default=False, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+from server.models.database import BehaviorBaselineDB
 
 
 class BaselineExistsError(Exception):
     """Raised when trying to create a baseline that already exists."""
+
     pass
 
 
 class BaselineNotFoundError(Exception):
     """Raised when baseline is not found."""
+
     pass
 
 
 class ActiveBaselineConflictError(Exception):
     """Raised when trying to activate a baseline conflicts with existing active baseline."""
+
     pass
 
 
@@ -92,8 +68,8 @@ class BaselineManager:
         agent_version: str,
         environment: str,
         baseline_type: str,
-        approved_by: Optional[str] = None,
-        description: Optional[str] = None,
+        approved_by: str | None = None,
+        description: str | None = None,
         auto_activate: bool = False,
     ) -> BehaviorBaselineDB:
         """
@@ -122,7 +98,9 @@ class BaselineManager:
         # Validate baseline type
         valid_types = ["version", "time_window", "manual"]
         if baseline_type not in valid_types:
-            raise ValueError(f"Invalid baseline_type: {baseline_type}. Must be one of {valid_types}")
+            raise ValueError(
+                f"Invalid baseline_type: {baseline_type}. Must be one of {valid_types}"
+            )
 
         # Create baseline
         baseline = BehaviorBaselineDB(
@@ -151,7 +129,9 @@ class BaselineManager:
         except IntegrityError as e:
             self.db.rollback()
             if "unique_profile" in str(e).lower():
-                raise BaselineExistsError(f"Baseline already exists for profile {profile_id}")
+                raise BaselineExistsError(
+                    f"Baseline already exists for profile {profile_id}"
+                ) from e
             raise
 
     def approve_baseline(
@@ -246,7 +226,7 @@ class BaselineManager:
         self.db.commit()
         return baseline
 
-    def get_baseline(self, baseline_id: UUID) -> Optional[BehaviorBaselineDB]:
+    def get_baseline(self, baseline_id: UUID) -> BehaviorBaselineDB | None:
         """
         Get baseline by ID.
 
@@ -267,7 +247,7 @@ class BaselineManager:
         agent_id: str,
         agent_version: str,
         environment: str,
-    ) -> Optional[BehaviorBaselineDB]:
+    ) -> BehaviorBaselineDB | None:
         """
         Get currently active baseline for drift comparison.
 
@@ -286,7 +266,7 @@ class BaselineManager:
                     BehaviorBaselineDB.agent_id == agent_id,
                     BehaviorBaselineDB.agent_version == agent_version,
                     BehaviorBaselineDB.environment == environment,
-                    BehaviorBaselineDB.is_active == True,
+                    BehaviorBaselineDB.is_active,
                 )
             )
             .first()
@@ -294,14 +274,14 @@ class BaselineManager:
 
     def list_baselines(
         self,
-        agent_id: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        environment: Optional[str] = None,
-        baseline_type: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        agent_id: str | None = None,
+        agent_version: str | None = None,
+        environment: str | None = None,
+        baseline_type: str | None = None,
+        is_active: bool | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[BehaviorBaselineDB]:
+    ) -> list[BehaviorBaselineDB]:
         """
         List baselines with optional filtering.
 
@@ -339,7 +319,7 @@ class BaselineManager:
 
         return query.all()
 
-    def _validate_description(self, description: Optional[str]) -> None:
+    def _validate_description(self, description: str | None) -> None:
         """
         Validate baseline description is privacy-safe.
 
@@ -371,9 +351,7 @@ class BaselineManager:
         description_lower = description.lower()
         for keyword in forbidden_keywords:
             if keyword in description_lower:
-                raise ValueError(
-                    f"Baseline description contains forbidden keyword: '{keyword}'"
-                )
+                raise ValueError(f"Baseline description contains forbidden keyword: '{keyword}'")
 
         # Length check
         if len(description) > 200:
@@ -382,6 +360,7 @@ class BaselineManager:
 
 # Convenience functions
 
+
 def create_baseline_from_profile(
     db: Session,
     profile_id: UUID,
@@ -389,8 +368,8 @@ def create_baseline_from_profile(
     agent_version: str,
     environment: str,
     baseline_type: str,
-    approved_by: Optional[str] = None,
-    description: Optional[str] = None,
+    approved_by: str | None = None,
+    description: str | None = None,
     auto_activate: bool = False,
 ) -> BehaviorBaselineDB:
     """
@@ -428,7 +407,7 @@ def get_active_baseline_for_agent(
     agent_id: str,
     agent_version: str,
     environment: str,
-) -> Optional[BehaviorBaselineDB]:
+) -> BehaviorBaselineDB | None:
     """
     Convenience function to get active baseline for an agent.
 

@@ -7,7 +7,7 @@
  * - Step linkage
  * - Actionable insights
  *
- * This component helps answer "why did the agent fail?" (Phase-1 goal)
+ * This component helps answer "why did the agent fail?"
  */
 
 import React from 'react';

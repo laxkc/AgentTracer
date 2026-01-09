@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { API_CONFIG, API_ENDPOINTS } from "../config/api";
 
 interface BehaviorDrift {
   drift_id: string;
@@ -74,11 +75,13 @@ const DriftDetail: React.FC = () => {
   }, [driftId]);
 
   const fetchDriftDetails = async () => {
+    if (!driftId) return;
+
     try {
       setLoading(true);
       setError(null);
 
-      const driftResponse = await fetch(`http://localhost:8001/v1/phase3/drift/${driftId}`);
+      const driftResponse = await fetch(`${API_CONFIG.QUERY_API_BASE_URL}${API_ENDPOINTS.DRIFT_DETAIL(driftId)}`);
       if (!driftResponse.ok) {
         throw new Error("Drift event not found");
       }
@@ -86,7 +89,7 @@ const DriftDetail: React.FC = () => {
       setDrift(driftEvent);
 
       const baselineResponse = await fetch(
-        `http://localhost:8001/v1/phase3/baselines/${driftEvent.baseline_id}`
+        `${API_CONFIG.QUERY_API_BASE_URL}${API_ENDPOINTS.BASELINE_DETAIL(driftEvent.baseline_id)}`
       );
       if (baselineResponse.ok) {
         const baselineData = await baselineResponse.json();
@@ -107,7 +110,7 @@ const DriftDetail: React.FC = () => {
 
     try {
       setResolving(true);
-      const response = await fetch(`http://localhost:8001/v1/phase3/drift/${driftId}/resolve`, {
+      const response = await fetch(`${API_CONFIG.QUERY_API_BASE_URL}${API_ENDPOINTS.DRIFT_RESOLVE(driftId)}`, {
         method: "POST",
       });
 

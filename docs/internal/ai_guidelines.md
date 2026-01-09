@@ -259,12 +259,14 @@ If any check fails → **reject**.
 When working on drift detection code, AI assistants should reference these file paths:
 
 **Backend (server/):**
-- server/models.py - Data models
-- server/behavior_profiles.py - Profile builder
-- server/baselines.py - Baseline management
-- server/drift_engine.py - Drift detection engine
-- server/alerts.py - Alert emission
-- server/query_drift.py - Drift query API
+- server/api/ingest.py - Write-only ingest API
+- server/api/query.py - Read-only query API
+- server/api/routers/drift.py - Drift query API router
+- server/models/database.py - Data models
+- server/core/behavior_profiles.py - Profile builder
+- server/core/baselines.py - Baseline management
+- server/core/drift_engine.py - Drift detection engine
+- server/core/alerts.py - Alert emission
 
 **Database:**
 - server/db/schema.sql - Database schema

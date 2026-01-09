@@ -15,16 +15,16 @@ Endpoints:
 """
 
 import logging
-from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine, text
+from fastapi import Depends, FastAPI, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from server.models import (
+from server.config.settings import settings
+from server.database import close_db, get_db, init_db
+from server.middleware.setup import setup_cors, setup_error_handlers
+from server.models.database import (
     AgentDecisionDB,
     AgentFailureDB,
     AgentQualitySignalDB,
@@ -32,7 +32,6 @@ from server.models import (
     AgentRunDB,
     AgentRunResponse,
     AgentStepDB,
-    Base,
 )
 
 # Configure logging
@@ -40,45 +39,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # FastAPI Application
-
 app = FastAPI(
-    title="AgentTracer Platform - Ingest API",
+    title=f"{settings.APP_NAME} - Ingest API",
     description="Write-only API for agent telemetry ingestion",
-    version="0.1.0",
+    version=settings.VERSION,
 )
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Vite dev servers
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Database Configuration
-
-# Read DATABASE_URL from environment variable, fallback to localhost for local dev
-import os
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/agent_observability")
-
-engine = create_engine(DATABASE_URL, echo=False)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def get_db():
-    """Dependency for database sessions"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def init_db():
-    """Initialize database tables"""
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables initialized")
+# Setup middleware
+setup_cors(app)
+setup_error_handlers(app)
 
 
 # Metrics & Observability
@@ -101,7 +70,7 @@ def increment_metric(metric_name: str):
 # Helper Functions for Ingest Operations
 
 
-def _check_duplicate_run(db: Session, run_id) -> Optional[AgentRunResponse]:
+def _check_duplicate_run(db: Session, run_id) -> AgentRunResponse | None:
     """
     Check if run already exists and return it if found (idempotency).
 
@@ -320,7 +289,7 @@ async def ingest_run(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Data integrity violation: {str(e)}",
-        )
+        ) from e
 
     except Exception as e:
         db.rollback()
@@ -329,7 +298,7 @@ async def ingest_run(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to ingest run: {str(e)}",
-        )
+        ) from e
 
 
 @app.get(
@@ -357,7 +326,7 @@ async def health_check(db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Database connection failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.get(
@@ -396,21 +365,8 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown"""
     logger.info("Shutting down Ingest API...")
-
-
-# Error Handlers
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    """Custom HTTP exception handler with logging"""
-    logger.warning(
-        f"HTTP {exc.status_code} for {request.method} {request.url.path}: {exc.detail}"
-    )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
+    close_db()
+    logger.info("Ingest API shut down successfully")
 
 
 if __name__ == "__main__":
@@ -418,9 +374,9 @@ if __name__ == "__main__":
 
     # For local development
     uvicorn.run(
-        "backend.ingest_api:app",
+        "server.api.ingest:app",
         host="0.0.0.0",
-        port=8000,
+        port=settings.INGEST_API_PORT,
         reload=True,
         log_level="info",
     )
