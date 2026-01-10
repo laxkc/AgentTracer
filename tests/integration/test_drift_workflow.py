@@ -17,7 +17,12 @@ import pytest
 from server.core.baselines import BaselineManager
 from server.core.behavior_profiles import BehaviorProfileBuilder
 from server.core.drift_engine import DriftDetectionEngine
-from server.models.database import AgentDecisionDB, AgentQualitySignalDB, AgentRunDB
+from server.models.database import (
+    AgentDecisionDB,
+    AgentQualitySignalDB,
+    AgentRunDB,
+    BehaviorProfileDB,
+)
 
 
 @pytest.mark.integration
@@ -53,7 +58,7 @@ class TestProfileCreation:
                 run_id=run_id,
                 decision_type="tool_selection",
                 selected="api" if i < 65 else "cache",
-                alternatives=["api", "cache"],
+                reason_code="fresh_data_required" if i < 65 else "cached_data_sufficient",
             )
             db_session.add(decision)
 
@@ -85,6 +90,23 @@ class TestBaselineCreation:
         agent_version = "1.0.0"
         environment = "test"
 
+        window_start = datetime.now(timezone.utc) - timedelta(hours=1)
+        window_end = datetime.now(timezone.utc)
+        profile = BehaviorProfileDB(
+            profile_id=profile_id,
+            agent_id=agent_id,
+            agent_version=agent_version,
+            environment=environment,
+            window_start=window_start,
+            window_end=window_end,
+            sample_size=1,
+            decision_distributions={},
+            signal_distributions={},
+            latency_stats={},
+        )
+        db_session.add(profile)
+        db_session.commit()
+
         manager = BaselineManager(db_session)
 
         baseline = manager.create_baseline(
@@ -106,6 +128,23 @@ class TestBaselineCreation:
         agent_id = "activate_test_agent"
         agent_version = "1.0.0"
         environment = "test"
+
+        window_start = datetime.now(timezone.utc) - timedelta(hours=1)
+        window_end = datetime.now(timezone.utc)
+        profile = BehaviorProfileDB(
+            profile_id=profile_id,
+            agent_id=agent_id,
+            agent_version=agent_version,
+            environment=environment,
+            window_start=window_start,
+            window_end=window_end,
+            sample_size=1,
+            decision_distributions={},
+            signal_distributions={},
+            latency_stats={},
+        )
+        db_session.add(profile)
+        db_session.commit()
 
         manager = BaselineManager(db_session)
 
@@ -155,7 +194,7 @@ class TestDriftDetection:
                 run_id=run_id,
                 decision_type="tool_selection",
                 selected="api" if i < 65 else "cache",
-                alternatives=["api", "cache"],
+                reason_code="fresh_data_required" if i < 65 else "cached_data_sufficient",
             )
             db_session.add(decision)
 
@@ -175,6 +214,21 @@ class TestDriftDetection:
         # Create and activate baseline
         manager = BaselineManager(db_session)
         profile_id = uuid4()
+        db_session.add(
+            BehaviorProfileDB(
+                profile_id=profile_id,
+                agent_id=agent_id,
+                agent_version=agent_version,
+                environment=environment,
+                window_start=baseline_start,
+                window_end=baseline_end,
+                sample_size=baseline_profile["sample_size"],
+                decision_distributions=baseline_profile["decision_distributions"],
+                signal_distributions=baseline_profile["signal_distributions"],
+                latency_stats=baseline_profile["latency_stats"],
+            )
+        )
+        db_session.commit()
         baseline = manager.create_baseline(
             profile_id=profile_id,
             agent_id=agent_id,
@@ -185,7 +239,7 @@ class TestDriftDetection:
         manager.activate_baseline(baseline.baseline_id)
 
         # Create observation period with shift (45% api, 55% cache)
-        observation_start = datetime.now(timezone.utc) - timedelta(days=1)
+        observation_start = datetime.now(timezone.utc) - timedelta(hours=50)
         observation_end = datetime.now(timezone.utc)
 
         for i in range(50):
@@ -206,7 +260,7 @@ class TestDriftDetection:
                 run_id=run_id,
                 decision_type="tool_selection",
                 selected="api" if i < 23 else "cache",  # 45% api
-                alternatives=["api", "cache"],
+                reason_code="fresh_data_required" if i < 23 else "cached_data_sufficient",
             )
             db_session.add(decision)
 
@@ -224,16 +278,11 @@ class TestDriftDetection:
 
         # Detect drift
         engine = DriftDetectionEngine(db_session)
-        drift_events = engine._detect_decision_drift(
-            baseline_id=baseline.baseline_id,
-            baseline_dists=baseline_profile["decision_distributions"],
-            observed_dists=observation_profile["decision_distributions"],
-            agent_id=agent_id,
-            agent_version=agent_version,
-            environment=environment,
-            observation_window_start=observation_start,
-            observation_window_end=observation_end,
-            observation_sample_size=50,
+        drift_events = engine.detect_drift(
+            baseline=baseline,
+            observed_window_start=observation_start,
+            observed_window_end=observation_end,
+            min_sample_size=30,
         )
 
         # Should detect drift due to 20% shift
@@ -284,6 +333,7 @@ class TestEndToEndDriftPipeline:
                 run_id=run_id,
                 signal_type="schema_valid",
                 signal_code="full_match" if i < 92 else "partial_match",
+                value=True,
             )
             db_session.add(signal)
 
@@ -301,8 +351,24 @@ class TestEndToEndDriftPipeline:
         )
 
         manager = BaselineManager(db_session)
+        profile_id = uuid4()
+        db_session.add(
+            BehaviorProfileDB(
+                profile_id=profile_id,
+                agent_id=agent_id,
+                agent_version=agent_version,
+                environment=environment,
+                window_start=baseline_start,
+                window_end=baseline_end,
+                sample_size=baseline_profile["sample_size"],
+                decision_distributions=baseline_profile["decision_distributions"],
+                signal_distributions=baseline_profile["signal_distributions"],
+                latency_stats=baseline_profile["latency_stats"],
+            )
+        )
+        db_session.commit()
         baseline = manager.create_baseline(
-            profile_id=uuid4(),
+            profile_id=profile_id,
             agent_id=agent_id,
             agent_version=agent_version,
             environment=environment,
@@ -332,6 +398,7 @@ class TestEndToEndDriftPipeline:
                 run_id=run_id,
                 signal_type="schema_valid",
                 signal_code="full_match" if i < 46 else "partial_match",
+                value=True,
             )
             db_session.add(signal)
 
@@ -348,16 +415,11 @@ class TestEndToEndDriftPipeline:
         )
 
         engine = DriftDetectionEngine(db_session)
-        drift_events = engine._detect_signal_drift(
-            baseline_id=baseline.baseline_id,
-            baseline_dists=baseline_profile["signal_distributions"],
-            observed_dists=observation_profile["signal_distributions"],
-            agent_id=agent_id,
-            agent_version=agent_version,
-            environment=environment,
-            observation_window_start=observation_start,
-            observation_window_end=observation_end,
-            observation_sample_size=50,
+        drift_events = engine.detect_drift(
+            baseline=baseline,
+            observed_window_start=observation_start,
+            observed_window_end=observation_end,
+            min_sample_size=30,
         )
 
         # Similar distributions should not trigger drift

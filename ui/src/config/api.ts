@@ -35,9 +35,9 @@ export const API_ENDPOINTS = {
   PROFILE_DETAIL: (profileId: string) => `/v1/drift/profiles/${profileId}`,
 
   // Drift Detection
-  DRIFT: '/v1/drift/drift',
-  DRIFT_DETAIL: (driftId: string) => `/v1/drift/drift/${driftId}`,
-  DRIFT_RESOLVE: (driftId: string) => `/v1/drift/drift/${driftId}/resolve`,
-  DRIFT_TIMELINE: '/v1/drift/drift/timeline',
-  DRIFT_SUMMARY: '/v1/drift/drift/summary',
+  DRIFT: '/v1/drift',
+  DRIFT_DETAIL: (driftId: string) => `/v1/drift/${driftId}`,
+  DRIFT_RESOLVE: (driftId: string) => `/v1/drift/${driftId}/resolve`,
+  DRIFT_TIMELINE: '/v1/drift/timeline',
+  DRIFT_SUMMARY: '/v1/drift/summary',
 } as const;

@@ -8,94 +8,78 @@
  * - Active state highlighting
  */
 
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Home,
   BarChart3,
-  Activity,
+  ListChecks,
+  Sparkles,
+  // Layers,
   Target,
-  Layers,
+  Activity,
   GitCompare,
-  ChevronDown,
-  ChevronRight,
   Menu,
   X,
-} from 'lucide-react';
-import { Button } from './ui/button';
+} from "lucide-react";
+import { Button } from "./ui/button";
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [behaviorExpanded, setBehaviorExpanded] = useState(
-    location.pathname.startsWith('/behaviors') ||
-    location.pathname.startsWith('/baselines') ||
-    location.pathname.startsWith('/profiles') ||
-    location.pathname.startsWith('/drift')
-  );
-
-  const isActive = (path: string) => location.pathname === path;
-  const isActiveGroup = (paths: string[]) =>
-    paths.some(path => location.pathname.startsWith(path));
-
   const navItems = [
-    {
-      label: 'Dashboard',
-      icon: Home,
-      path: '/',
-    },
-    {
-      label: 'Runs',
-      icon: BarChart3,
-      path: '/runs',
-    },
+    { label: "Overview", icon: Home, path: "/" },
+    { label: "Runs", icon: BarChart3, path: "/runs" },
+    { label: "Decisions", icon: ListChecks, path: "/decisions" },
+    { label: "Quality Signals", icon: Sparkles, path: "/signals" },
+    // { label: "Profiles", icon: Layers, path: "/profiles" },
+    { label: "Baselines", icon: Target, path: "/baselines" },
+    { label: "Drift", icon: Activity, path: "/behaviors", matchPaths: ["/behaviors", "/drift"] },
+    { label: "Comparisons", icon: GitCompare, path: "/drift/compare" },
   ];
 
-  const behaviorItems = [
-    {
-      label: 'Dashboard',
-      icon: Activity,
-      path: '/behaviors',
-    },
-    {
-      label: 'Baselines',
-      icon: Target,
-      path: '/baselines',
-    },
-    {
-      label: 'Profiles',
-      icon: Layers,
-      path: '/profiles',
-    },
-    {
-      label: 'Drift Comparison',
-      icon: GitCompare,
-      path: '/drift/compare',
-    },
-  ];
+  const getMatchScore = (pathname: string, pattern: string) => {
+    if (pattern === "/") {
+      return pathname === "/" ? 1 : -1;
+    }
+    if (pathname === pattern || pathname.startsWith(`${pattern}/`)) {
+      return pattern.length;
+    }
+    return -1;
+  };
+
+  const activePath = navItems.reduce((best, item) => {
+    const patterns = item.matchPaths ?? [item.path];
+    const bestForItem = patterns.reduce(
+      (score, pattern) => Math.max(score, getMatchScore(location.pathname, pattern)),
+      -1
+    );
+
+    if (bestForItem > best.score) {
+      return { score: bestForItem, path: item.path };
+    }
+    return best;
+  }, { score: -1, path: "" }).path;
+
+  const isActive = (path: string) => path === activePath;
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo/Header */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-            <Activity className="w-6 h-6 text-white" />
-          </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900">AgentTracer</h2>
-            <p className="text-xs text-gray-500">Observability Platform</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {/* Main Navigation */}
         {navItems.map((item) => (
           <Link key={item.path} to={item.path}>
             <Button
-              variant={isActive(item.path) ? 'default' : 'ghost'}
+              variant={isActive(item.path) ? "default" : "ghost"}
               className="w-full justify-start"
               size="default"
             >
@@ -104,51 +88,17 @@ const Sidebar: React.FC = () => {
             </Button>
           </Link>
         ))}
-
-        {/* Behaviors Section */}
-        <div className="pt-2">
-          <Button
-            variant={isActiveGroup(['/behaviors', '/baselines', '/profiles', '/drift']) ? 'secondary' : 'ghost'}
-            className="w-full justify-between"
-            onClick={() => setBehaviorExpanded(!behaviorExpanded)}
-          >
-            <div className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Behaviors
-            </div>
-            {behaviorExpanded ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </Button>
-
-          {behaviorExpanded && (
-            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-2">
-              {behaviorItems.map((item) => (
-                <Link key={item.path} to={item.path}>
-                  <Button
-                    variant={isActive(item.path) ? 'default' : 'ghost'}
-                    className="w-full justify-start"
-                    size="sm"
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500 text-center">
-          <p>Agent Observability Platform</p>
-          <p className="mt-1">Powered by AgentTracer</p>
+      {/* <div className="p-4 border-t border-gray-200">
+        <div className="flex flex-col gap-2 text-xs text-gray-500">
+          <div className="flex items-center justify-between">
+            <span>AgentTracer</span>
+            <span>v1.0.0</span>
+          </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 
@@ -180,7 +130,7 @@ const Sidebar: React.FC = () => {
           fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-40
           transition-transform duration-300 ease-in-out
           w-64
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         <SidebarContent />

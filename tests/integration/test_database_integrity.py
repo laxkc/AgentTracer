@@ -45,12 +45,15 @@ class TestForeignKeyConstraints:
         db_session.flush()
 
         # Create step
+        step_started_at = datetime.now(timezone.utc)
         step = AgentStepDB(
             run_id=run_id,
             step_type="tool",
             name="test_step",
             seq=0,
             latency_ms=100,
+            started_at=step_started_at,
+            ended_at=step_started_at,
         )
         db_session.add(step)
         db_session.commit()
@@ -83,16 +86,25 @@ class TestForeignKeyConstraints:
         db_session.flush()
 
         # Add step
-        step = AgentStepDB(run_id=run_id, step_type="tool", name="step1", seq=0, latency_ms=100)
+        step_started_at = datetime.now(timezone.utc)
+        step = AgentStepDB(
+            run_id=run_id,
+            step_type="tool",
+            name="step1",
+            seq=0,
+            latency_ms=100,
+            started_at=step_started_at,
+            ended_at=step_started_at,
+        )
         db_session.add(step)
 
         # Add failure
         failure = AgentFailureDB(
             run_id=run_id,
-            failure_type="tool_error",
+            step_id=step.step_id,
+            failure_type="tool",
             failure_code="timeout",
             message="Test failure",
-            step_seq=0,
         )
         db_session.add(failure)
 
@@ -101,13 +113,16 @@ class TestForeignKeyConstraints:
             run_id=run_id,
             decision_type="tool_selection",
             selected="api",
-            alternatives=["api", "cache"],
+            reason_code="fresh_data_required",
         )
         db_session.add(decision)
 
         # Add quality signal
         signal = AgentQualitySignalDB(
-            run_id=run_id, signal_type="schema_valid", signal_code="full_match"
+            run_id=run_id,
+            signal_type="schema_valid",
+            signal_code="full_match",
+            value=True,
         )
         db_session.add(signal)
 
@@ -219,12 +234,15 @@ class TestCheckConstraints:
         db_session.flush()
 
         # Try invalid step type
+        step_started_at = datetime.now(timezone.utc)
         step = AgentStepDB(
             run_id=run_id,
             step_type="invalid_type",  # Invalid
             name="test",
             seq=0,
             latency_ms=100,
+            started_at=step_started_at,
+            ended_at=step_started_at,
         )
         db_session.add(step)
 
@@ -255,12 +273,15 @@ class TestTransactionIsolation:
             db_session.flush()
 
             # Try to create invalid step (will fail)
+            step_started_at = datetime.now(timezone.utc)
             step = AgentStepDB(
                 run_id=run_id,
                 step_type="invalid",
                 name="test",
                 seq=0,
                 latency_ms=100,
+                started_at=step_started_at,
+                ended_at=step_started_at,
             )
             db_session.add(step)
             db_session.commit()

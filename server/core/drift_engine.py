@@ -265,7 +265,7 @@ class DriftDetectionEngine:
             observed_value=observed_value,
             delta=delta,
             delta_percent=delta_percent,
-            significance=p_value,
+            significance=float(p_value),
             test_method=test_method,
             severity=severity,
             detected_at=datetime.utcnow(),

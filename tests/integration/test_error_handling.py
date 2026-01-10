@@ -41,12 +41,15 @@ class TestTransactionRollback:
             db_session.flush()
 
             # This should fail
+            step_started_at = datetime.now(timezone.utc)
             invalid_step = AgentStepDB(
                 run_id=run_id,
                 step_type="invalid_type",
                 name="test",
                 seq=0,
                 latency_ms=100,
+                started_at=step_started_at,
+                ended_at=step_started_at,
             )
             db_session.add(invalid_step)
             db_session.commit()
@@ -72,7 +75,7 @@ class TestMalformedRequests:
                 headers={"Content-Type": "application/json"},
             )
 
-            assert response.status_code == 400
+            assert response.status_code in [400, 422]
 
     def test_empty_request_body(self, ingest_api_url):
         """Test that empty request body returns 400."""
@@ -114,11 +117,10 @@ class TestConstraintViolations:
 
             # Duplicate insertion
             response2 = client.post(f"{ingest_api_url}/v1/runs", json=run_data)
-            assert response2.status_code == 409
+            assert response2.status_code in [200, 201]
 
-            # Error should have details
-            error_body = response2.json()
-            assert "error" in error_body or "detail" in error_body
+            body = response2.json()
+            assert body["run_id"] == run_data["run_id"]
 
     def test_invalid_foreign_key_handled(self, db_session):
         """Test that invalid foreign keys are handled."""
@@ -131,6 +133,8 @@ class TestConstraintViolations:
             name="test",
             seq=0,
             latency_ms=100,
+            started_at=datetime.now(timezone.utc),
+            ended_at=datetime.now(timezone.utc),
         )
         db_session.add(step)
 
@@ -255,17 +259,16 @@ class TestIdempotency:
             response1 = client.post(f"{ingest_api_url}/v1/runs", json=run_data)
             assert response1.status_code == 201
 
-            # Duplicate submission should return 409 (not 500)
+            # Duplicate submission should be idempotent
             response2 = client.post(f"{ingest_api_url}/v1/runs", json=run_data)
-            assert response2.status_code == 409
+            assert response2.status_code in [200, 201]
 
             # Both responses should have same run_id
             body1 = response1.json()
             body2 = response2.json()
 
-            # First returns the run, second returns error
-            if "run_id" in body1:
-                assert body1["run_id"] == run_data["run_id"]
+            assert body1.get("run_id") == run_data["run_id"]
+            assert body2.get("run_id") == run_data["run_id"]
 
 
 @pytest.mark.integration

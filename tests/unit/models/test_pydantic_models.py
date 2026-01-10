@@ -24,17 +24,17 @@ class TestAgentRunValidation:
 
     def test_valid_run_creation(self):
         """Test creating valid run."""
+        started_at = datetime.now(timezone.utc)
         run = AgentRunCreate(
             run_id=str(uuid4()),
             agent_id="test_agent",
             agent_version="1.0.0",
             environment="production",
             status="success",
-            started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            metadata={},
+            started_at=started_at,
+            ended_at=started_at,
             steps=[],
-            failures=[],
+            failure=None,
             decisions=[],
             quality_signals=[],
         )
@@ -66,38 +66,37 @@ class TestAgentRunValidation:
 
     def test_run_with_nested_objects(self):
         """Test run with nested steps and failures."""
+        started_at = datetime.now(timezone.utc)
+        step = AgentStepCreate(
+            step_type="tool",
+            name="api_call",
+            seq=0,
+            latency_ms=100,
+            started_at=started_at,
+            ended_at=started_at,
+            metadata={},
+        )
         run = AgentRunCreate(
             run_id=str(uuid4()),
             agent_id="test_agent",
             agent_version="1.0.0",
             environment="production",
             status="failure",
-            started_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
-            metadata={},
-            steps=[
-                AgentStepCreate(
-                    step_type="tool",
-                    name="api_call",
-                    seq=0,
-                    latency_ms=100,
-                    metadata={},
-                )
-            ],
-            failures=[
-                AgentFailureCreate(
-                    failure_type="tool_error",
-                    failure_code="timeout",
-                    message="API timeout",
-                    step_seq=0,
-                )
-            ],
+            started_at=started_at,
+            ended_at=started_at,
+            steps=[step],
+            failure=AgentFailureCreate(
+                failure_type="tool",
+                failure_code="timeout",
+                message="API timeout",
+                step_id=step.step_id,
+            ),
             decisions=[],
             quality_signals=[],
         )
 
         assert len(run.steps) == 1
-        assert len(run.failures) == 1
+        assert run.failure is not None
         assert run.status == "failure"
 
 
@@ -106,11 +105,14 @@ class TestAgentStepValidation:
 
     def test_valid_step_creation(self):
         """Test creating valid step."""
+        started_at = datetime.now(timezone.utc)
         step = AgentStepCreate(
             step_type="tool",
             name="api_call",
             seq=0,
             latency_ms=150,
+            started_at=started_at,
+            ended_at=started_at,
             metadata={},
         )
 
@@ -125,19 +127,24 @@ class TestAgentStepValidation:
                 name="test",
                 seq=0,
                 latency_ms=100,
+                started_at=datetime.now(timezone.utc),
+                ended_at=datetime.now(timezone.utc),
             )
 
     @pytest.mark.parametrize(
         "step_type",
-        ["plan", "retrieve", "tool", "respond", "orchestrate"],
+        ["plan", "retrieve", "tool", "respond", "other"],
     )
     def test_step_valid_types(self, step_type):
         """Test all valid step types are accepted."""
+        started_at = datetime.now(timezone.utc)
         step = AgentStepCreate(
             step_type=step_type,
             name="test_step",
             seq=0,
             latency_ms=100,
+            started_at=started_at,
+            ended_at=started_at,
             metadata={},
         )
 
@@ -151,6 +158,8 @@ class TestAgentStepValidation:
                 name="test",
                 seq=0,
                 latency_ms=-100,  # Negative latency invalid
+                started_at=datetime.now(timezone.utc),
+                ended_at=datetime.now(timezone.utc),
             )
 
     def test_step_negative_sequence(self):
@@ -161,6 +170,8 @@ class TestAgentStepValidation:
                 name="test",
                 seq=-1,  # Negative seq invalid
                 latency_ms=100,
+                started_at=datetime.now(timezone.utc),
+                ended_at=datetime.now(timezone.utc),
             )
 
 
@@ -170,28 +181,28 @@ class TestAgentFailureValidation:
     def test_valid_failure_creation(self):
         """Test creating valid failure."""
         failure = AgentFailureCreate(
-            failure_type="tool_error",
+            failure_type="tool",
             failure_code="timeout",
             message="Request timed out",
-            step_seq=0,
+            step_id=uuid4(),
         )
 
-        assert failure.failure_type == "tool_error"
+        assert failure.failure_type == "tool"
         assert failure.failure_code == "timeout"
 
     def test_failure_missing_message(self):
         """Test that missing message raises ValidationError."""
         with pytest.raises(ValidationError):
             AgentFailureCreate(
-                failure_type="tool_error",
+                failure_type="tool",
                 failure_code="timeout",
                 # Missing message
-                step_seq=0,
+                step_id=uuid4(),
             )
 
     @pytest.mark.parametrize(
         "failure_type",
-        ["tool_error", "model_error", "retrieval_error", "orchestration_error"],
+        ["tool", "model", "retrieval", "orchestration"],
     )
     def test_failure_valid_types(self, failure_type):
         """Test all valid failure types are accepted."""
@@ -199,7 +210,7 @@ class TestAgentFailureValidation:
             failure_type=failure_type,
             failure_code="test_code",
             message="Test failure",
-            step_seq=0,
+            step_id=uuid4(),
         )
 
         assert failure.failure_type == failure_type
@@ -213,24 +224,26 @@ class TestAgentDecisionValidation:
         decision = AgentDecisionCreate(
             decision_type="tool_selection",
             selected="api",
-            alternatives=["api", "cache", "database"],
+            reason_code="fresh_data_required",
+            candidates=["api", "cache", "database"],
             metadata={},
         )
 
         assert decision.decision_type == "tool_selection"
         assert decision.selected == "api"
-        assert len(decision.alternatives) == 3
+        assert len(decision.candidates) == 3
 
     def test_decision_with_no_alternatives(self):
         """Test decision with empty alternatives list."""
         decision = AgentDecisionCreate(
-            decision_type="binary_choice",
-            selected="yes",
-            alternatives=[],
+            decision_type="tool_selection",
+            selected="api",
+            reason_code="cached_data_sufficient",
+            candidates=[],
             metadata={},
         )
 
-        assert len(decision.alternatives) == 0
+        assert len(decision.candidates) == 0
 
     def test_decision_selected_not_in_alternatives(self):
         """Test that selected value can be outside alternatives (edge case)."""
@@ -238,11 +251,12 @@ class TestAgentDecisionValidation:
         decision = AgentDecisionCreate(
             decision_type="tool_selection",
             selected="other",
-            alternatives=["api", "cache"],
+            reason_code="tool_unavailable",
+            candidates=["api", "cache"],
             metadata={},
         )
 
-        assert decision.selected not in decision.alternatives
+        assert decision.selected not in decision.candidates
 
 
 class TestAgentQualitySignalValidation:
@@ -253,6 +267,7 @@ class TestAgentQualitySignalValidation:
         signal = AgentQualitySignalCreate(
             signal_type="schema_valid",
             signal_code="full_match",
+            value=True,
             metadata={},
         )
 
@@ -264,6 +279,7 @@ class TestAgentQualitySignalValidation:
         with pytest.raises(ValidationError):
             AgentQualitySignalCreate(
                 signal_type="schema_valid",
+                value=True,
                 # Missing signal_code
             )
 
@@ -272,6 +288,7 @@ class TestAgentQualitySignalValidation:
         signal = AgentQualitySignalCreate(
             signal_type="tool_success",
             signal_code="first_attempt",
+            value=True,
             metadata={"retry_count": 0},
         )
 
@@ -289,16 +306,21 @@ class TestMetadataValidation:
                 name="test",
                 seq=0,
                 latency_ms=100,
+                started_at=datetime.now(timezone.utc),
+                ended_at=datetime.now(timezone.utc),
                 metadata="not_a_dict",  # Invalid
             )
 
     def test_empty_metadata_allowed(self):
         """Test that empty metadata is allowed."""
+        started_at = datetime.now(timezone.utc)
         step = AgentStepCreate(
             step_type="tool",
             name="test",
             seq=0,
             latency_ms=100,
+            started_at=started_at,
+            ended_at=started_at,
             metadata={},
         )
 
@@ -306,11 +328,14 @@ class TestMetadataValidation:
 
     def test_metadata_with_nested_objects(self):
         """Test metadata with nested objects."""
+        started_at = datetime.now(timezone.utc)
         step = AgentStepCreate(
             step_type="tool",
             name="test",
             seq=0,
             latency_ms=100,
+            started_at=started_at,
+            ended_at=started_at,
             metadata={"config": {"timeout": 30, "retry": True}},
         )
 

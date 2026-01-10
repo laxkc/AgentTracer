@@ -27,8 +27,6 @@ class TestSDKToIngestFlow:
 
     def test_ingest_complete_run(self, ingest_api_url, db_session):
         """Test ingesting a complete run with steps, failures, decisions, and signals."""
-        run_id = uuid4()
-
         # Create run via SDK
         tracer = AgentTracer(
             agent_id="test_agent",
@@ -37,7 +35,8 @@ class TestSDKToIngestFlow:
             environment="test",
         )
 
-        with tracer.start_run(run_id=run_id) as run:
+        with tracer.start_run() as run:
+            run_id = run.run_id
             with run.step("plan", "analyze_request"):
                 time.sleep(0.01)
 
@@ -47,10 +46,15 @@ class TestSDKToIngestFlow:
             run.record_decision(
                 decision_type="tool_selection",
                 selected="api",
-                alternatives=["api", "cache"],
+                reason_code="fresh_data_required",
+                candidates=["api", "cache"],
             )
 
-            run.record_quality_signal(signal_type="schema_valid", signal_code="full_match")
+            run.record_quality_signal(
+                signal_type="schema_valid",
+                signal_code="full_match",
+                value=True,
+            )
 
         # Verify in database
         db_run = db_session.query(AgentRunDB).filter(AgentRunDB.run_id == run_id).first()
@@ -62,8 +66,6 @@ class TestSDKToIngestFlow:
 
     def test_ingest_run_with_failure(self, ingest_api_url, db_session):
         """Test ingesting a run with failures."""
-        run_id = uuid4()
-
         tracer = AgentTracer(
             agent_id="test_agent",
             agent_version="1.0.0",
@@ -71,15 +73,16 @@ class TestSDKToIngestFlow:
             environment="test",
         )
 
-        with tracer.start_run(run_id=run_id) as run:
-            with run.step("tool", "api_call"):
+        with tracer.start_run() as run:
+            run_id = run.run_id
+            with run.step("tool", "api_call") as step:
                 pass
 
             run.record_failure(
-                failure_type="tool_error",
+                failure_type="tool",
                 failure_code="timeout",
                 message="API timeout",
-                step_seq=0,
+                step_id=step.step_id,
             )
 
         # Verify status is failure
@@ -161,8 +164,6 @@ class TestEndToEndRoundTrip:
 
     def test_full_round_trip(self, ingest_api_url, query_api_url):
         """Test full telemetry round-trip."""
-        run_id = uuid4()
-
         # 1. Capture via SDK
         tracer = AgentTracer(
             agent_id="roundtrip_agent",
@@ -171,7 +172,8 @@ class TestEndToEndRoundTrip:
             environment="test",
         )
 
-        with tracer.start_run(run_id=run_id) as run:
+        with tracer.start_run() as run:
+            run_id = run.run_id
             with run.step("plan", "step1"):
                 time.sleep(0.01)
 
@@ -181,7 +183,8 @@ class TestEndToEndRoundTrip:
             run.record_decision(
                 decision_type="tool_selection",
                 selected="api",
-                alternatives=["api", "cache"],
+                reason_code="fresh_data_required",
+                candidates=["api", "cache"],
             )
 
         # 2. Wait for propagation
@@ -207,7 +210,6 @@ class TestDataConsistency:
 
     def test_timestamp_preservation(self, ingest_api_url, query_api_url):
         """Test that timestamps are preserved correctly."""
-        run_id = uuid4()
         started_at = datetime.now(timezone.utc)
 
         tracer = AgentTracer(
@@ -217,7 +219,8 @@ class TestDataConsistency:
             environment="test",
         )
 
-        with tracer.start_run(run_id=run_id) as run:
+        with tracer.start_run() as run:
+            run_id = run.run_id
             pass
 
         time.sleep(0.5)
@@ -235,8 +238,7 @@ class TestDataConsistency:
                 assert time_diff < 1.0
 
     def test_metadata_preservation(self, ingest_api_url, query_api_url):
-        """Test that metadata is preserved exactly."""
-        run_id = uuid4()
+        """Test that step metadata is preserved exactly."""
         metadata = {
             "user_id": "user123",
             "session_id": "sess456",
@@ -250,15 +252,18 @@ class TestDataConsistency:
             environment="test",
         )
 
-        with tracer.start_run(run_id=run_id, metadata=metadata) as run:
-            pass
+        with tracer.start_run() as run:
+            run_id = run.run_id
+            with run.step("tool", "metadata_step") as step:
+                step.add_metadata(metadata)
 
         time.sleep(0.5)
 
         # Query back
         with httpx.Client() as client:
-            response = client.get(f"{query_api_url}/v1/runs/{run_id}")
+            response = client.get(f"{query_api_url}/v1/runs/{run_id}/steps")
 
             if response.status_code == 200:
-                queried_run = response.json()
-                assert queried_run["metadata"] == metadata
+                steps = response.json()
+                assert steps
+                assert steps[0]["metadata"] == metadata

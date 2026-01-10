@@ -4,8 +4,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { API_CONFIG } from '../config/api';
+import { apiRequest } from '../lib/apiClient';
+import { toAppError } from '../types/errors';
+import { useErrorHandler } from './useErrorHandler';
 import { showToast } from '../utils/toast';
 
 export interface UseApiState<T> {
@@ -30,6 +32,7 @@ export function useApi<T>(
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { handleError } = useErrorHandler();
 
   const {
     enabled = true,
@@ -38,7 +41,7 @@ export function useApi<T>(
     showErrorToast = true,
   } = options || {};
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     if (!enabled) {
       setLoading(false);
       return;
@@ -48,33 +51,36 @@ export function useApi<T>(
       setLoading(true);
       setError(null);
 
-      const response = await axios.get<T>(`${API_CONFIG.QUERY_API_BASE_URL}${url}`, {
-        timeout: API_CONFIG.TIMEOUT,
+      const response = await apiRequest<T>(url, {
+        baseUrl: API_CONFIG.QUERY_API_BASE_URL,
+        method: 'GET',
+        signal,
       });
 
-      setData(response.data);
+      setData(response);
 
       if (onSuccess) {
-        onSuccess(response.data);
+        onSuccess(response);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch data';
-      setError(errorMessage);
-
-      if (showErrorToast) {
-        showToast.error(errorMessage);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
       }
+      const appError = showErrorToast ? handleError(err, 'useApi.fetchData') : toAppError(err);
+      setError(appError.message);
 
       if (onError) {
-        onError(errorMessage);
+        onError(appError.message);
       }
     } finally {
       setLoading(false);
     }
-  }, [url, enabled, onSuccess, onError, showErrorToast]);
+  }, [url, enabled, onSuccess, onError, showErrorToast, handleError]);
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   return {
@@ -100,6 +106,7 @@ export function useApiMutation<TData, TVariables = any>(
 ) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { handleError } = useErrorHandler();
 
   const {
     onSuccess,
@@ -115,10 +122,10 @@ export function useApiMutation<TData, TVariables = any>(
         setLoading(true);
         setError(null);
 
-        const fullUrl = `${API_CONFIG.QUERY_API_BASE_URL}${url}`;
-
-        const response = await axios[method]<TData>(fullUrl, variables, {
-          timeout: API_CONFIG.TIMEOUT,
+        const response = await apiRequest<TData>(url, {
+          baseUrl: API_CONFIG.QUERY_API_BASE_URL,
+          method: method.toUpperCase() as 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+          body: variables,
         });
 
         if (showSuccessToast) {
@@ -126,20 +133,19 @@ export function useApiMutation<TData, TVariables = any>(
         }
 
         if (onSuccess) {
-          onSuccess(response.data);
+          onSuccess(response);
         }
 
-        return response.data;
+        return response;
       } catch (err: any) {
-        const errorMessage = err.response?.data?.detail || err.message || 'Operation failed';
-        setError(errorMessage);
-
-        if (showErrorToast) {
-          showToast.error(errorMessage);
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return null;
         }
+        const appError = showErrorToast ? handleError(err, 'useApiMutation') : toAppError(err);
+        setError(appError.message);
 
         if (onError) {
-          onError(errorMessage);
+          onError(appError.message);
         }
 
         return null;
@@ -147,7 +153,7 @@ export function useApiMutation<TData, TVariables = any>(
         setLoading(false);
       }
     },
-    [method, onSuccess, onError, showSuccessToast, showErrorToast, successMessage]
+    [method, onSuccess, onError, showSuccessToast, showErrorToast, successMessage, handleError]
   );
 
   return {

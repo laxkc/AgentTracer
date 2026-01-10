@@ -23,29 +23,37 @@ class TestDriftDetection:
         engine = DriftDetectionEngine(db_mock)
 
         baseline = BehaviorBaselineDB(
-        baseline_id="baseline-1",
-        profile_id="profile-1",
-        agent_id="agent-123",
-        agent_version="v1",
-        environment="prod",
-        baseline_type="decision_distribution",
-        is_active=True,
-        created_at=datetime.now(timezone.utc),
-    )
+            profile_id=uuid4(),
+            agent_id="agent-123",
+            agent_version="v1",
+            environment="prod",
+            baseline_type="decision_distribution",
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        )
 
-          
-        baseline_dists = {"tool_selection": {"api": 0.65, "cache": 0.35}}
-        observed_dists = {"tool_selection": {"api": 0.65, "cache": 0.35}}
-    
-        engine._load_baseline_distributions = Mock(return_value=baseline_dists)
-        engine._load_observed_distributions = Mock(return_value=observed_dists)
-             
+        baseline_profile = Mock(
+            decision_distributions={"tool_selection": {"api": 0.65, "cache": 0.35}},
+            signal_distributions={},
+            latency_stats={},
+        )
+        observed_profile = {
+            "sample_size": 100,
+            "decision_distributions": {"tool_selection": {"api": 0.65, "cache": 0.35}},
+            "signal_distributions": {},
+            "latency_stats": {},
+        }
+
+        engine._build_observed_profile = Mock(return_value=observed_profile)
+        engine._load_baseline_profile = Mock(return_value=baseline_profile)
+        engine._run_chi_square_test = Mock(return_value=(0.01, "chi_square"))
+
         drift_events = engine.detect_drift(
             baseline=baseline,
             observed_window_start=datetime.now(timezone.utc) - timedelta(hours=1),
             observed_window_end=datetime.now(timezone.utc),
             min_sample_size=10,
-    )
+        )
 
         assert len(drift_events) == 0
 
@@ -54,20 +62,38 @@ class TestDriftDetection:
         db_mock = Mock()
         engine = DriftDetectionEngine(db_mock)
 
+        baseline = BehaviorBaselineDB(
+            profile_id=uuid4(),
+            agent_id="agent-123",
+            agent_version="v1",
+            environment="prod",
+            baseline_type="decision_distribution",
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        )
+
         # Significant shift: api drops from 65% to 45%
-        baseline_dists = {"tool_selection": {"api": 0.65, "cache": 0.35}}
-        observed_dists = {"tool_selection": {"api": 0.45, "cache": 0.55}}
+        baseline_profile = Mock(
+            decision_distributions={"tool_selection": {"api": 0.65, "cache": 0.35}},
+            signal_distributions={},
+            latency_stats={},
+        )
+        observed_profile = {
+            "sample_size": 100,
+            "decision_distributions": {"tool_selection": {"api": 0.45, "cache": 0.55}},
+            "signal_distributions": {},
+            "latency_stats": {},
+        }
+
+        engine._build_observed_profile = Mock(return_value=observed_profile)
+        engine._load_baseline_profile = Mock(return_value=baseline_profile)
+        engine._run_chi_square_test = Mock(return_value=(0.01, "chi_square"))
 
         drift_events = engine.detect_drift(
-            baseline_id=uuid4(),
-            baseline_dists=baseline_dists,
-            observed_dists=observed_dists,
-            agent_id="test",
-            agent_version="1.0.0",
-            environment="prod",
-            observation_window_start=datetime.now(),
-            observation_window_end=datetime.now() + timedelta(hours=1),
-            observation_sample_size=100,
+            baseline=baseline,
+            observed_window_start=datetime.now(timezone.utc),
+            observed_window_end=datetime.now(timezone.utc) + timedelta(hours=1),
+            min_sample_size=10,
         )
 
         assert len(drift_events) > 0
@@ -78,20 +104,38 @@ class TestDriftDetection:
         db_mock = Mock()
         engine = DriftDetectionEngine(db_mock)
 
+        baseline = BehaviorBaselineDB(
+            profile_id=uuid4(),
+            agent_id="agent-123",
+            agent_version="v1",
+            environment="prod",
+            baseline_type="decision_distribution",
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        )
+
         # Small shift: api changes by only 2%
-        baseline_dists = {"tool_selection": {"api": 0.65, "cache": 0.35}}
-        observed_dists = {"tool_selection": {"api": 0.63, "cache": 0.37}}
+        baseline_profile = Mock(
+            decision_distributions={"tool_selection": {"api": 0.65, "cache": 0.35}},
+            signal_distributions={},
+            latency_stats={},
+        )
+        observed_profile = {
+            "sample_size": 100,
+            "decision_distributions": {"tool_selection": {"api": 0.63, "cache": 0.37}},
+            "signal_distributions": {},
+            "latency_stats": {},
+        }
+
+        engine._build_observed_profile = Mock(return_value=observed_profile)
+        engine._load_baseline_profile = Mock(return_value=baseline_profile)
+        engine._run_chi_square_test = Mock(return_value=(0.01, "chi_square"))
 
         drift_events = engine.detect_drift(
-            baseline_id=uuid4(),
-            baseline_dists=baseline_dists,
-            observed_dists=observed_dists,
-            agent_id="test",
-            agent_version="1.0.0",
-            environment="prod",
-            observation_window_start=datetime.now(),
-            observation_window_end=datetime.now() + timedelta(hours=1),
-            observation_sample_size=100,
+            baseline=baseline,
+            observed_window_start=datetime.now(timezone.utc),
+            observed_window_end=datetime.now(timezone.utc) + timedelta(hours=1),
+            min_sample_size=10,
         )
 
         # Should not detect drift for such small change

@@ -395,3 +395,7 @@ config.local.py
 !Dockerfile
 !docker-compose.yml
 !.dockerignore
+
+
+# Examples
+examples/

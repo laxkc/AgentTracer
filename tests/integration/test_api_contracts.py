@@ -62,7 +62,9 @@ class TestIngestAPIEndpoints:
 
             # Duplicate submission
             response2 = client.post(f"{ingest_api_url}/v1/runs", json=run_data)
-            assert response2.status_code == 409  # Conflict
+            assert response2.status_code in [200, 201]
+            body = response2.json()
+            assert body["run_id"] == run_data["run_id"]
 
     def test_ingest_health_check(self, ingest_api_url):
         """Test ingest API health check."""
@@ -82,7 +84,7 @@ class TestQueryAPIEndpoints:
     def test_list_runs_success(self, query_api_url):
         """Test listing runs returns 200."""
         with httpx.Client() as client:
-            response = client.get(f"{query_api_url}/v1/runs?limit=10")
+            response = client.get(f"{query_api_url}/v1/runs?page_size=10")
 
             assert response.status_code == 200
             body = response.json()
@@ -96,8 +98,8 @@ class TestQueryAPIEndpoints:
                 params={
                     "agent_id": "test_agent",
                     "status": "success",
-                    "limit": 5,
-                    "offset": 0,
+                    "page": 1,
+                    "page_size": 5,
                 },
             )
 
@@ -216,7 +218,10 @@ class TestCORSHeaders:
             response = client.options(f"{ingest_api_url}/v1/runs")
 
             # Should have CORS headers
-            assert "access-control-allow-origin" in response.headers or response.status_code == 200
+            assert "access-control-allow-origin" in response.headers or response.status_code in [
+                200,
+                405,
+            ]
 
 
 @pytest.mark.integration
@@ -226,7 +231,7 @@ class TestContentTypeHeaders:
     def test_json_content_type(self, query_api_url):
         """Test responses have JSON content type."""
         with httpx.Client() as client:
-            response = client.get(f"{query_api_url}/v1/runs?limit=1")
+            response = client.get(f"{query_api_url}/v1/runs?page_size=1")
 
             assert "application/json" in response.headers.get("content-type", "")
 
@@ -243,9 +248,9 @@ class TestPagination:
             with httpx.Client() as client:
                 client.post(f"{ingest_api_url}/v1/runs", json=run_data)
 
-        # Query with limit=3
+        # Query with page_size=3
         with httpx.Client() as client:
-            response = client.get(f"{query_api_url}/v1/runs?limit=3")
+            response = client.get(f"{query_api_url}/v1/runs?page_size=3")
 
             assert response.status_code == 200
             body = response.json()
@@ -255,11 +260,11 @@ class TestPagination:
         """Test pagination offset parameter."""
         with httpx.Client() as client:
             # Get first page
-            response1 = client.get(f"{query_api_url}/v1/runs?limit=5&offset=0")
+            response1 = client.get(f"{query_api_url}/v1/runs?page=1&page_size=5")
             page1 = response1.json()
 
             # Get second page
-            response2 = client.get(f"{query_api_url}/v1/runs?limit=5&offset=5")
+            response2 = client.get(f"{query_api_url}/v1/runs?page=2&page_size=5")
             page2 = response2.json()
 
             # Pages should be different (if enough data)

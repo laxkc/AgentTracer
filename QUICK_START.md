@@ -86,13 +86,13 @@ psql agent_observability < server/db/schema.sql
 uv pip install -e .
 # Or using pip: pip install -e .
 
-python -m server.ingest_api
+python -m server.api.ingest
 # Runs on http://localhost:8000
 ```
 
 **Terminal 2 - Query API:**
 ```bash
-python -m server.query_api
+python -m server.api.query
 # Runs on http://localhost:8001
 ```
 

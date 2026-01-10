@@ -10,6 +10,9 @@ import {
   Search,
   FileX,
   Database,
+  Lock,
+  WifiOff,
+  ShieldX,
   LucideIcon
 } from 'lucide-react';
 import { cn } from '../../utils/helpers';
@@ -103,5 +106,31 @@ export const NoFilesEmptyState: React.FC = () => (
     icon={FileX}
     title="No files yet"
     description="Upload files to get started."
+  />
+);
+
+export const UnauthorizedEmptyState: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => (
+  <EmptyState
+    icon={Lock}
+    title="Authentication required"
+    description="You need to sign in to view this content."
+    action={onLogin ? { label: 'Sign in', onClick: onLogin } : undefined}
+  />
+);
+
+export const OfflineEmptyState: React.FC<{ onRetry?: () => void }> = ({ onRetry }) => (
+  <EmptyState
+    icon={WifiOff}
+    title="No connection"
+    description="Check your internet connection and try again."
+    action={onRetry ? { label: 'Retry', onClick: onRetry } : undefined}
+  />
+);
+
+export const PermissionDeniedEmptyState: React.FC = () => (
+  <EmptyState
+    icon={ShieldX}
+    title="Permission denied"
+    description="You do not have access to view this resource."
   />
 );

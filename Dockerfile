@@ -35,4 +35,4 @@ USER appuser
 EXPOSE 8000 8001
 
 # Default command (will be overridden by docker-compose)
-CMD ["uvicorn", "server.ingest_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server.api.query:app", "--host", "0.0.0.0", "--port", "8000"]

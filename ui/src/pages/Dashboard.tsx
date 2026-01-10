@@ -1,29 +1,37 @@
 /**
- * Dashboard Page
+ * Overview Page (Dashboard)
  *
- * Displays aggregated statistics and insights:
- * - Total runs, failures, success rate
- * - Failure type breakdown
- * - Step type distribution
+ * High-level system health and activity at-a-glance:
+ * - Total runs, success rate, decisions, quality signals
  * - Recent activity
- * - Quick links to filtered views
+ * - Top decision types
+ * - Quality signal health
+ * - System alerts (drift events)
  */
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
   TrendingDown,
   Activity,
   AlertTriangle,
   CheckCircle,
-  Clock,
   ArrowRight,
-} from 'lucide-react';
-import { Button } from '../components/ui/button';
-
-const QUERY_API_URL = 'http://localhost:8001';
+  ListChecks,
+  Sparkles,
+} from "lucide-react";
+import { Button } from "../components/ui/button";
+import { PageHeader } from "../components/PageHeader";
+import {
+  StatCardSkeleton,
+  TableSkeleton,
+} from "../components/ui/LoadingSkeleton";
+import { ErrorEmptyState, NoDataEmptyState } from "../components/ui/EmptyState";
+import { API_CONFIG, API_ENDPOINTS } from "../config/api";
+import { apiGet } from "../lib/apiClient";
+import { useErrorHandler } from "../hooks/useErrorHandler";
+import { safePercent, safeToFixed } from "../utils/safemath";
 
 interface Stats {
   total_runs: number;
@@ -40,6 +48,13 @@ interface RecentRun {
   status: string;
   started_at: string;
   steps: any[];
+  decisions?: Array<{
+    decision_type: string;
+    selected: string;
+  }>;
+  quality_signals?: Array<{
+    value: boolean;
+  }>;
 }
 
 const Dashboard: React.FC = () => {
@@ -48,6 +63,8 @@ const Dashboard: React.FC = () => {
   const [recentRuns, setRecentRuns] = useState<RecentRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const { handleError } = useErrorHandler();
 
   useEffect(() => {
     fetchDashboardData();
@@ -60,16 +77,21 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch stats
-      const statsResponse = await axios.get(`${QUERY_API_URL}/v1/stats`);
-      setStats(statsResponse.data);
+      const statsResponse = await apiGet<Stats>(
+        API_ENDPOINTS.RUN_STATS,
+        API_CONFIG.QUERY_API_BASE_URL
+      );
+      setStats(statsResponse);
 
-      // Fetch recent runs
-      const runsResponse = await axios.get(`${QUERY_API_URL}/v1/runs?page_size=5`);
-      setRecentRuns(runsResponse.data);
+      const runsResponse = await apiGet<RecentRun[]>(
+        `${API_ENDPOINTS.RUNS}?page_size=100`,
+        API_CONFIG.QUERY_API_BASE_URL
+      );
+      setRecentRuns(runsResponse);
+      setLastUpdated(new Date());
     } catch (err) {
-      setError('Failed to fetch dashboard data');
-      console.error('Error fetching dashboard:', err);
+      const appError = handleError(err, "Dashboard.fetchDashboardData");
+      setError(appError.message);
     } finally {
       setLoading(false);
     }
@@ -80,226 +102,353 @@ const Dashboard: React.FC = () => {
     return `${(ms / 1000).toFixed(2)}s`;
   };
 
-  const getFailureColor = (type: string) => {
-    const colors: Record<string, string> = {
-      tool: 'bg-red-100 text-red-700 border-red-200',
-      model: 'bg-orange-100 text-orange-700 border-orange-200',
-      retrieval: 'bg-blue-100 text-blue-700 border-blue-200',
-      orchestration: 'bg-purple-100 text-purple-700 border-purple-200',
+  const decisionStats = useMemo(() => {
+    let totalDecisions = 0;
+    const typeCount: Record<string, number> = {};
+
+    recentRuns.forEach((run) => {
+      const decisions = Array.isArray(run.decisions) ? run.decisions : [];
+      if (decisions.length > 0) {
+        totalDecisions += decisions.length;
+        decisions.forEach((decision) => {
+          typeCount[decision.decision_type] =
+            (typeCount[decision.decision_type] || 0) + 1;
+        });
+      }
+    });
+
+    return {
+      total: totalDecisions,
+      typeCount,
     };
-    return colors[type] || 'bg-gray-100 text-gray-700 border-gray-200';
-  };
+  }, [recentRuns]);
+
+  const qualitySignalStats = useMemo(() => {
+    let totalSignals = 0;
+    let positiveSignals = 0;
+    let negativeSignals = 0;
+
+    recentRuns.forEach((run) => {
+      const signals = Array.isArray(run.quality_signals)
+        ? run.quality_signals
+        : [];
+      if (signals.length > 0) {
+        totalSignals += signals.length;
+        signals.forEach((signal) => {
+          if (signal.value) {
+            positiveSignals++;
+          } else {
+            negativeSignals++;
+          }
+        });
+      }
+    });
+
+    return {
+      total: totalSignals,
+      positive: positiveSignals,
+      negative: negativeSignals,
+    };
+  }, [recentRuns]);
+
+  const topDecisionTypes = useMemo(() => {
+    return Object.entries(decisionStats.typeCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [decisionStats]);
 
   if (loading && !stats) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+      <div className="container mx-auto px-4 py-10 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <StatCardSkeleton key={i} />
+          ))}
         </div>
+        <TableSkeleton rows={6} />
       </div>
     );
   }
 
   if (error && !stats) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-          <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-800 mb-2 text-center">Error</h2>
-          <p className="text-red-600 text-center">{error}</p>
-          <Button
-            onClick={fetchDashboardData}
-            variant="destructive"
-            className="mt-4 w-full"
-          >
-            Retry
-          </Button>
-        </div>
+      <div className="container mx-auto px-4 py-10">
+        <ErrorEmptyState message={error} onRetry={fetchDashboardData} />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">
-          Real-time AgentTracer metrics and insights
-        </p>
-      </div>
+    <div className="container mx-auto px-4 py-10">
+      <PageHeader
+        title="Overview"
+        description="A high-level view of observed agent execution patterns, decisions, and signals within the selected scope."
+        lastUpdated={lastUpdated}
+        onRefresh={fetchDashboardData}
+        loading={loading}
+      />
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Total Runs</p>
+            <p className="text-sm text-gray-600">Total Runs</p>
             <Activity className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats?.total_runs || 0}</p>
+          <p className="text-3xl font-semibold text-gray-900">
+            {stats?.total_runs || 0}
+          </p>
           <p className="text-xs text-gray-500 mt-1">All agent executions</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Success Rate</p>
+            <p className="text-sm text-gray-600">Success Rate</p>
             {(stats?.success_rate || 0) >= 90 ? (
               <TrendingUp className="w-5 h-5 text-green-500" />
             ) : (
               <TrendingDown className="w-5 h-5 text-red-500" />
             )}
           </div>
-          <p className="text-3xl font-bold text-gray-900">
-            {(stats?.success_rate ?? 0).toFixed(1)}%
+          <p className="text-3xl font-semibold text-gray-900">
+            {safeToFixed(stats?.success_rate ?? 0, 1, "0.0")}%
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {(stats?.total_runs || 0) - (stats?.total_failures || 0)} successful
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Failures</p>
-            <AlertTriangle className="w-5 h-5 text-red-500" />
+            <p className="text-sm text-gray-600">Active Decisions</p>
+            <ListChecks className="w-5 h-5 text-purple-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats?.total_failures || 0}</p>
-          <p className="text-xs text-gray-500 mt-1">Runs with failures</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Avg Latency</p>
-            <Clock className="w-5 h-5 text-purple-500" />
-          </div>
-          <p className="text-3xl font-bold text-gray-900">
-            {formatLatency(stats?.avg_latency_ms || 0)}
+          <p className="text-3xl font-semibold text-gray-900">
+            {decisionStats.total}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Per step average</p>
+          <p className="text-xs text-gray-500 mt-1">Total decisions tracked</p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Failure Breakdown */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Failure Type Breakdown
-          </h2>
-          {stats?.failure_breakdown && Object.keys(stats.failure_breakdown).length > 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-600">Quality Signals</p>
+            <Sparkles className="w-5 h-5 text-blue-500" />
+          </div>
+          <p className="text-3xl font-semibold text-gray-900">
+            {qualitySignalStats.total}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Total signals recorded</p>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Recent Activity
+              </h2>
+              <p className="text-sm text-gray-500">
+                Latest runs across all agents
+              </p>
+            </div>
+            <Button variant="ghost" onClick={() => navigate("/runs")}>
+              View all
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+          {recentRuns.length > 0 ? (
             <div className="space-y-3">
-              {Object.entries(stats.failure_breakdown).map(([type, count]) => {
-                const [failureType, failureCode] = type.split('/');
-                return (
-                  <div key={type} className="flex items-center justify-between">
+              {recentRuns.slice(0, 6).map((run) => (
+                <button
+                  key={run.run_id}
+                  onClick={() => navigate(`/runs/${run.run_id}`)}
+                  className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-semibold border ${getFailureColor(
-                          failureType
-                        )}`}
-                      >
-                        {failureType}
-                      </span>
-                      <span className="text-sm text-gray-700 font-mono">
-                        {failureCode}
+                      {run.status === "success" ? (
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                      )}
+                      <span className="text-sm font-medium text-gray-900">
+                        {run.agent_id}
                       </span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">{count}</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(run.started_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>
+                      {Array.isArray(run.steps) ? run.steps.length : 0} steps
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <NoDataEmptyState entityName="recent runs" />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Top Decision Types
+              </h2>
+              <p className="text-sm text-gray-500">
+                Most common decision patterns
+              </p>
+            </div>
+            <Button variant="ghost" onClick={() => navigate("/decisions")}>
+              View all
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+          {topDecisionTypes.length > 0 ? (
+            <div className="space-y-4">
+              {topDecisionTypes.map(([type, count]) => {
+                const percent = Math.round(
+                  safePercent(count, decisionStats.total)
+                );
+                return (
+                  <div key={type}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {type}
+                      </span>
+                      <span className="text-sm text-gray-700">
+                        {count} / {percent}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full">
+                      <div
+                        className="h-2 bg-purple-500 rounded-full"
+                        style={{ width: `${percent}%` }}
+                      ></div>
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
-              <p className="text-gray-600">No failures recorded</p>
-            </div>
+            <NoDataEmptyState entityName="decision data" />
           )}
         </div>
+      </section>
 
-        {/* Step Type Distribution */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Step Type Distribution
-          </h2>
-          {stats?.step_type_breakdown && Object.keys(stats.step_type_breakdown).length > 0 ? (
-            <div className="space-y-3">
-              {Object.entries(stats.step_type_breakdown).map(([type, count]) => (
-                <div key={type}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {type}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900">{count}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full"
-                      style={{
-                        width: `${
-                          (count /
-                            Object.values(stats.step_type_breakdown).reduce(
-                              (a, b) => a + b,
-                              0
-                            )) *
-                          100
-                        }%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Quality Signal Health
+              </h2>
+              <p className="text-sm text-gray-500">Signal distribution</p>
             </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">No step data available</div>
-          )}
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-          <button
-            onClick={() => navigate('/runs')}
-            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
-          >
-            View all
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {recentRuns.length > 0 ? (
-          <div className="space-y-3">
-            {recentRuns.map((run) => (
-              <div
-                key={run.run_id}
-                onClick={() => navigate(`/runs/${run.run_id}`)}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-              >
+            <Button variant="ghost" onClick={() => navigate("/signals")}>
+              View all
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+          {qualitySignalStats.total > 0 ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {run.status === 'success' ? (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                  )}
+                  <CheckCircle className="w-6 h-6 text-green-500" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{run.agent_id}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(run.started_at).toLocaleString()}
+                    <p className="text-sm font-medium text-gray-700">
+                      Positive Signals
                     </p>
+                    <p className="text-xs text-gray-500">Value = true</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{run.steps.length} steps</span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                <p className="text-2xl font-semibold text-green-600">
+                  {qualitySignalStats.positive}
+                </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Negative Signals
+                    </p>
+                    <p className="text-xs text-gray-500">Value = false</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-semibold text-red-600">
+                  {qualitySignalStats.negative}
+                </p>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full flex">
+                  <div
+                    className="h-full bg-green-500"
+                    style={{
+                      width: `${safePercent(
+                        qualitySignalStats.positive,
+                        qualitySignalStats.total
+                      )}%`,
+                    }}
+                  ></div>
+                  <div
+                    className="h-full bg-red-500"
+                    style={{
+                      width: `${safePercent(
+                        qualitySignalStats.negative,
+                        qualitySignalStats.total
+                      )}%`,
+                    }}
+                  ></div>
                 </div>
               </div>
-            ))}
+            </div>
+          ) : (
+            <NoDataEmptyState entityName="signal data" />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                System Status
+              </h2>
+              <p className="text-sm text-gray-500">Overall system health</p>
+            </div>
           </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">No recent activity</div>
-        )}
-      </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-green-900">
+                    System Operational
+                  </p>
+                  <p className="text-xs text-green-600">All services running</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Success Rate</p>
+                <p className="text-xl font-semibold text-gray-900">
+                  {safeToFixed(stats?.success_rate ?? 0, 1, "0.0")}%
+                </p>
+              </div>
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Avg Latency</p>
+                <p className="text-xl font-semibold text-gray-900">
+                  {formatLatency(stats?.avg_latency_ms || 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

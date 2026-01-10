@@ -10,7 +10,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   ArrowLeft,
   Clock,
@@ -27,8 +26,11 @@ import TraceTimeline from '../components/TraceTimeline';
 import FailureBreakdown from '../components/FailureBreakdown';
 import DecisionsList from '../components/DecisionsList';
 import QualitySignalsList from '../components/QualitySignalsList';
-
-const QUERY_API_URL = 'http://localhost:8001';
+import { CardSkeleton, TableSkeleton } from '../components/ui/LoadingSkeleton';
+import { ErrorEmptyState } from '../components/ui/EmptyState';
+import { API_CONFIG, API_ENDPOINTS } from '../config/api';
+import { apiGet } from '../lib/apiClient';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 interface AgentRun {
   run_id: string;
@@ -51,6 +53,7 @@ const RunDetail: React.FC = () => {
   const [run, setRun] = useState<AgentRun | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { handleError } = useErrorHandler();
 
   useEffect(() => {
     fetchRunDetails();
@@ -60,11 +63,14 @@ const RunDetail: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${QUERY_API_URL}/v1/runs/${runId}`);
-      setRun(response.data);
+      const response = await apiGet<AgentRun>(
+        API_ENDPOINTS.RUN_DETAIL(runId ?? ''),
+        API_CONFIG.QUERY_API_BASE_URL
+      );
+      setRun(response);
     } catch (error) {
-      setError('Failed to fetch run details. Please check if the Query API is running.');
-      console.error('Error fetching run:', error);
+      const appError = handleError(error, 'RunDetail.fetchRunDetails');
+      setError(appError.message);
     } finally {
       setLoading(false);
     }
@@ -82,88 +88,74 @@ const RunDetail: React.FC = () => {
     return `${(durationMs / 60000).toFixed(2)}m`;
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
+  const formatTimestamp = (timestamp: string) => new Date(timestamp).toLocaleString();
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'success':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-50 text-green-700 border-green-200';
       case 'failure':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-50 text-red-700 border-red-200';
       case 'partial':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-50 text-yellow-700 border-yellow-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'failure':
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Clock className="w-5 h-5 text-yellow-500" />;
+        return <Clock className="w-4 h-4 text-yellow-500" />;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading run details...</p>
+      <div className="container mx-auto px-4 py-10 space-y-6">
+        <CardSkeleton />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
+        <TableSkeleton rows={4} />
       </div>
     );
   }
 
   if (error || !run) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Button
-          onClick={() => navigate('/runs')}
-          variant="ghost"
-          className="mb-6"
-        >
+      <div className="container mx-auto px-4 py-10">
+        <Button onClick={() => navigate('/runs')} variant="ghost" className="mb-6">
           <ArrowLeft className="w-4 h-4" />
           Back to Runs
         </Button>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-          <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-800 mb-2 text-center">Error</h2>
-          <p className="text-red-600 text-center">{error || 'Run not found'}</p>
-          <Button
-            onClick={fetchRunDetails}
-            variant="destructive"
-            className="mt-4 w-full"
-          >
-            Retry
-          </Button>
-        </div>
+        <ErrorEmptyState message={error || 'Run not found'} onRetry={fetchRunDetails} />
       </div>
     );
   }
 
+  const safeSteps = Array.isArray(run.steps) ? run.steps : [];
+  const safeFailures = Array.isArray(run.failures) ? run.failures : [];
+  const safeDecisions = Array.isArray(run.decisions) ? run.decisions : [];
+  const safeSignals = Array.isArray(run.quality_signals) ? run.quality_signals : [];
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Button
-        onClick={() => navigate('/runs')}
-        variant="ghost"
-        className="mb-6"
-      >
+    <div className="container mx-auto px-4 py-10">
+      <Button onClick={() => navigate('/runs')} variant="ghost" className="mb-6">
         <ArrowLeft className="w-4 h-4" />
         Back to Runs
       </Button>
 
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
+      <section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <h1 className="text-2xl font-bold text-gray-900">{run.agent_id}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{run.agent_id}</h1>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(
                   run.status
@@ -173,7 +165,7 @@ const RunDetail: React.FC = () => {
               </span>
               {((run.decisions && run.decisions.length > 0) ||
                 (run.quality_signals && run.quality_signals.length > 0)) && (
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 border border-purple-300 rounded text-xs font-semibold">
+                <span className="px-2 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded text-xs font-semibold">
                   Extended Data
                 </span>
               )}
@@ -184,16 +176,16 @@ const RunDetail: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-            <Activity className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <Activity className="w-4 h-4 text-blue-500 mt-0.5" />
             <div>
               <p className="text-xs text-gray-600 font-medium">Environment</p>
               <p className="text-sm font-semibold text-gray-900">{run.environment}</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-            <Calendar className="w-5 h-5 text-purple-500 mt-0.5" />
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <Calendar className="w-4 h-4 text-purple-500 mt-0.5" />
             <div>
               <p className="text-xs text-gray-600 font-medium">Started</p>
               <p className="text-sm font-semibold text-gray-900">
@@ -202,8 +194,8 @@ const RunDetail: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-            <Clock className="w-5 h-5 text-green-500 mt-0.5" />
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <Clock className="w-4 h-4 text-green-500 mt-0.5" />
             <div>
               <p className="text-xs text-gray-600 font-medium">Duration</p>
               <p className="text-sm font-semibold text-gray-900">
@@ -212,8 +204,8 @@ const RunDetail: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-            <Layers className="w-5 h-5 text-orange-500 mt-0.5" />
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <Layers className="w-4 h-4 text-orange-500 mt-0.5" />
             <div>
               <p className="text-xs text-gray-600 font-medium">Steps</p>
               <p className="text-sm font-semibold text-gray-900">{run.steps.length}</p>
@@ -221,21 +213,23 @@ const RunDetail: React.FC = () => {
           </div>
 
           {run.decisions && run.decisions.length > 0 && (
-            <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-              <GitBranch className="w-5 h-5 text-purple-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <GitBranch className="w-4 h-4 text-gray-700 mt-0.5" />
               <div>
-                <p className="text-xs text-purple-700 font-medium">Decisions</p>
-                <p className="text-sm font-semibold text-purple-900">{run.decisions.length}</p>
+                <p className="text-xs text-gray-600 font-medium">Decisions</p>
+                <p className="text-sm font-semibold text-gray-900">{run.decisions.length}</p>
               </div>
             </div>
           )}
 
           {run.quality_signals && run.quality_signals.length > 0 && (
-            <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-              <Zap className="w-5 h-5 text-purple-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <Zap className="w-4 h-4 text-gray-700 mt-0.5" />
               <div>
-                <p className="text-xs text-purple-700 font-medium">Quality Signals</p>
-                <p className="text-sm font-semibold text-purple-900">{run.quality_signals.length}</p>
+                <p className="text-xs text-gray-600 font-medium">Quality Signals</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {run.quality_signals.length}
+                </p>
               </div>
             </div>
           )}
@@ -249,36 +243,28 @@ const RunDetail: React.FC = () => {
             </code>
           </p>
         </div>
-      </div>
+      </section>
 
       {run.failures && run.failures.length > 0 && (
         <div className="mb-6">
-          <FailureBreakdown
-            failures={run.failures}
-            steps={run.steps}
-            runStatus={run.status}
-          />
+          <FailureBreakdown failures={safeFailures} steps={safeSteps} runStatus={run.status} />
         </div>
       )}
 
       {run.decisions && run.decisions.length > 0 && (
         <div className="mb-6">
-          <DecisionsList decisions={run.decisions} />
+          <DecisionsList decisions={safeDecisions} />
         </div>
       )}
 
       {run.quality_signals && run.quality_signals.length > 0 && (
         <div className="mb-6">
-          <QualitySignalsList signals={run.quality_signals} />
+          <QualitySignalsList signals={safeSignals} />
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <TraceTimeline
-          steps={run.steps}
-          runStarted={run.started_at}
-          runEnded={run.ended_at}
-        />
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <TraceTimeline steps={safeSteps} runStarted={run.started_at} runEnded={run.ended_at} />
       </div>
     </div>
   );
