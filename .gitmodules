@@ -1,3 +1,0 @@
-[submodule "examples/localGPT"]
-	path = examples/localGPT
-	url = https://github.com/PromtEngineer/localGPT.git

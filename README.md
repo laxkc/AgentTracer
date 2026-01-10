@@ -346,14 +346,6 @@ Complete usage examples in [examples/](./examples/):
 
 1. **localgpt/** - End-to-end LocalGPT demo (UI + backend + RAG pipeline)
 
-Run examples:
-```bash
-python examples/customer_support_agent.py
-python examples/agent_with_failures.py
-python examples/agent_with_decisions_example.py
-python examples/drift_detection_example.py
-```
-
 ## Documentation
 
 See [QUICK_START.md](./QUICK_START.md) for detailed getting started guide.
