@@ -396,3 +396,6 @@ config.local.py
 !docker-compose.yml
 !.dockerignore
 
+
+# Environment
+.env
