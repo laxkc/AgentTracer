@@ -1,23 +1,23 @@
 /**
  * Decisions Page
  *
- * Track agent decision patterns and reasoning across runs.
- * Displays decision history with filtering and analytics.
+ * Observed branch selections across runs.
+ * Decisions are explicit choices recorded by agent code.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListChecks, TrendingUp, Activity, ChevronDown, ChevronRight } from 'lucide-react';
+import { ListChecks, Activity, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Select } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { PageHeader } from '../components/PageHeader';
 import { StatCardSkeleton, TableSkeleton } from '../components/ui/LoadingSkeleton';
-import { ErrorEmptyState, NoDataEmptyState, NoSearchResultsEmptyState } from '../components/ui/EmptyState';
+import { ErrorEmptyState, NoSearchResultsEmptyState } from '../components/ui/EmptyState';
 import { API_CONFIG, API_ENDPOINTS } from '../config/api';
 import { apiGet } from '../lib/apiClient';
 import { useErrorHandler } from '../hooks/useErrorHandler';
-import { safeAverage, safeDivide, safeToFixed } from '../utils/safemath';
+import { safeDivide, safeToFixed } from '../utils/safemath';
 
 interface Decision {
   decision_id: string;
@@ -119,13 +119,11 @@ const Decisions: React.FC = () => {
     });
 
     const mostCommonType = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0];
-    const avgConfidence = safeAverage(allDecisions.map((decision) => decision.confidence || 0));
     const decisionsPerRun = safeDivide(allDecisions.length, runs.length || 1);
 
     return {
       total: allDecisions.length,
       mostCommonType: mostCommonType ? mostCommonType[0] : 'N/A',
-      avgConfidence: safeToFixed(avgConfidence, 2, '0.00'),
       decisionsPerRun: safeToFixed(decisionsPerRun, 1, '0.0'),
     };
   }, [allDecisions, runs]);
@@ -190,50 +188,84 @@ const Decisions: React.FC = () => {
     }
   };
 
+  const getContextEntries = (metadata: Record<string, any>) => {
+    const entries = Object.entries(metadata || {});
+    const context = entries.filter(([key]) => key.toLowerCase() !== 'reasoning');
+    const reasoning = entries.find(([key]) => key.toLowerCase() === 'reasoning');
+    return { context, reasoning };
+  };
+
+  const formatContextLabel = (key: string) => {
+    const normalized = key.replace(/_/g, ' ').trim();
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
   return (
     <div className="container mx-auto px-4 py-10">
       <PageHeader
         title="Decisions"
-        description="Track agent decision patterns and reasoning"
+        description="Observed branch selections across runs"
         onRefresh={fetchDecisions}
         loading={loading}
       />
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <section className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+        <div className="flex items-start gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-blue-900">What this page shows</h2>
+            <p className="text-sm text-blue-800 mt-2">
+              This page displays explicit branch selections recorded by agent code. It does not capture
+              model reasoning or internal thoughts.
+            </p>
+            <div className="text-xs text-blue-700 mt-3 space-y-1">
+              <p>Use this to track selection patterns and debug orchestration logic.</p>
+              <p>Do not use this to judge intelligence or infer reasoning.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Total Decisions</p>
+            <p
+              className="text-sm text-gray-600"
+              title="Number of declared branch selections across all runs. Not a measure of intelligence or complexity."
+            >
+              Branch Points
+            </p>
             <ListChecks className="w-5 h-5 text-blue-500" />
           </div>
           <p className="text-3xl font-semibold text-gray-900">{decisionStats.total}</p>
-          <p className="text-xs text-gray-500 mt-1">Across all runs</p>
+          <p className="text-xs text-gray-500 mt-1">Explicit selections recorded</p>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Most Common Type</p>
+            <p
+              className="text-sm text-gray-600"
+              title="Category with most branch points. Does not imply importance."
+            >
+              Most Frequent Category
+            </p>
             <Activity className="w-5 h-5 text-purple-500" />
           </div>
           <p className="text-xl font-semibold text-gray-900">{decisionStats.mostCommonType}</p>
-          <p className="text-xs text-gray-500 mt-1">Top decision type</p>
+          <p className="text-xs text-gray-500 mt-1">Most common branch category</p>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Avg Confidence</p>
-            <TrendingUp className="w-5 h-5 text-green-500" />
-          </div>
-          <p className="text-3xl font-semibold text-gray-900">{decisionStats.avgConfidence}</p>
-          <p className="text-xs text-gray-500 mt-1">Average confidence score</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Decision Rate</p>
+            <p
+              className="text-sm text-gray-600"
+              title="Average number of branch points per run. Higher numbers don't mean better or worse agents."
+            >
+              Branch Density
+            </p>
             <Activity className="w-5 h-5 text-blue-500" />
           </div>
           <p className="text-3xl font-semibold text-gray-900">{decisionStats.decisionsPerRun}</p>
-          <p className="text-xs text-gray-500 mt-1">Decisions per run</p>
+          <p className="text-xs text-gray-500 mt-1">Selections per run</p>
         </div>
       </section>
 
@@ -243,7 +275,7 @@ const Decisions: React.FC = () => {
             value={filters.decisionType}
             onChange={(e) => setFilters(prev => ({ ...prev, decisionType: e.target.value }))}
           >
-            <option value="">All Decision Types</option>
+            <option value="">All Branch Categories</option>
             {uniqueDecisionTypes.map(type => (
               <option key={type} value={type}>{type}</option>
             ))}
@@ -258,7 +290,7 @@ const Decisions: React.FC = () => {
 
           <Input
             type="number"
-            placeholder="Min Confidence (0-1)"
+            placeholder="Min Declared Confidence (0-1)"
             min="0"
             max="1"
             step="0.1"
@@ -276,7 +308,18 @@ const Decisions: React.FC = () => {
               setExpandedRows(new Set());
             }} />
           ) : (
-            <NoDataEmptyState entityName="decisions" />
+            <div className="text-center py-12">
+              <ListChecks className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-900 font-medium">No Branch Selections Recorded</p>
+              <p className="text-gray-500 text-sm mt-2">
+                Decisions are only captured when agent code explicitly records them.
+              </p>
+              <div className="text-xs text-gray-500 mt-3 space-y-1">
+                <p>1. Check that your agent uses run.record_decision()</p>
+                <p>2. Verify the tracer is enabled</p>
+                <p>3. Ensure runs completed successfully</p>
+              </div>
+            </div>
           )
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
@@ -285,17 +328,29 @@ const Decisions: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
 
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  title="The category of branch point (e.g., routing, retrieval_strategy). Defined by agent code."
+                >
+                  Branch Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Selected
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  title="The option selected at this branch point. Does not imply correctness or optimality."
+                >
+                  Chosen Path
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reason
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  title="Enum code recorded by developer. This is not model reasoning."
+                >
+                  Declared Reason
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Confidence
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  title="Developer-provided score (0.0–1.0). Not calibrated or comparable across agents."
+                >
+                  Declared Confidence
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Agent
@@ -361,10 +416,50 @@ const Decisions: React.FC = () => {
                       <tr>
                         <td colSpan={8} className="px-6 py-4 bg-gray-50">
                           <div className="text-sm">
-                            <p className="font-semibold text-gray-700 mb-2">Metadata:</p>
-                            <pre className="bg-white border border-gray-200 rounded p-3 text-xs overflow-x-auto">
-                              {safeMetadata(decision.metadata)}
-                            </pre>
+                            <p className="font-semibold text-gray-700">Branch Context</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Conditions at time of selection. This is factual context, not explanatory reasoning.
+                            </p>
+                            <div className="mt-3 space-y-2 text-xs text-gray-700">
+                              {(() => {
+                                const metadataEntries = getContextEntries(decision.metadata);
+                                if (metadataEntries.context.length === 0) {
+                                  return (
+                                    <div className="bg-white border border-gray-200 rounded p-3">
+                                      {safeMetadata(decision.metadata)}
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <ul className="space-y-1">
+                                    {metadataEntries.context.map(([key, value]) => (
+                                      <li key={key} className="flex items-start gap-2">
+                                        <span className="text-gray-500">•</span>
+                                        <span className="text-gray-600 font-medium">
+                                          {formatContextLabel(key)}:
+                                        </span>
+                                        <span className="text-gray-700 break-all">
+                                          {String(value)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                );
+                              })()}
+                            </div>
+                            {getContextEntries(decision.metadata).reasoning && (
+                              <details className="mt-3">
+                                <summary className="text-xs font-medium text-gray-600 cursor-pointer">
+                                  Developer Note
+                                </summary>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Optional note provided by developer, not an agent-generated explanation.
+                                </p>
+                                <div className="bg-white border border-gray-200 rounded p-3 text-xs mt-2">
+                                  {String(getContextEntries(decision.metadata).reasoning?.[1])}
+                                </div>
+                              </details>
+                            )}
                           </div>
                         </td>
                       </tr>
