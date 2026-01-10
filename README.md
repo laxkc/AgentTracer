@@ -344,10 +344,7 @@ AgentTracer enforces privacy at multiple layers:
 
 Complete usage examples in [examples/](./examples/):
 
-1. **customer_support_agent.py** - Success case with retries
-2. **agent_with_failures.py** - Demonstrates all failure types
-3. **agent_with_decisions_example.py** - Includes decisions and quality signals
-4. **drift_detection_example.py** - Demonstrates drift detection workflow
+1. **localgpt/** - End-to-end LocalGPT demo (UI + backend + RAG pipeline)
 
 Run examples:
 ```bash
