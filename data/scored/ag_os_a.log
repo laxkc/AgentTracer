@@ -1,0 +1,39 @@
+Trajectory monitor: monitor:my_traj_monitor
+Loading trajectories from: data/sample/opus-strategies-attack
+Found 26 trajectory(ies)
+Max concurrent trajectories: 6
+Running trajectory monitor: monitor:my_traj_monitor
+Monitoring:   0%|          | 0/26 [00:00<?, ?it/s]inspect_ai v0.3.240
+- hooks enabled: 1
+  control_tower/control-tower-cost-sink: Record model usage into Control Tower 
+cost sinks.
+
+Monitoring:   4%|▍         | 1/26 [00:09<04:06,  9.87s/it]Monitoring:   8%|▊         | 2/26 [00:17<03:23,  8.48s/it]Monitoring:  12%|█▏        | 3/26 [00:19<02:09,  5.64s/it]Monitoring:  15%|█▌        | 4/26 [00:24<02:00,  5.49s/it]Monitoring:  19%|█▉        | 5/26 [00:26<01:22,  3.91s/it]Monitoring:  23%|██▎       | 6/26 [00:32<01:33,  4.65s/it]Monitoring:  27%|██▋       | 7/26 [00:34<01:11,  3.78s/it]Monitoring:  31%|███       | 8/26 [00:36<01:00,  3.35s/it]Monitoring:  35%|███▍      | 9/26 [00:44<01:21,  4.77s/it]Monitoring:  38%|███▊      | 10/26 [00:48<01:10,  4.42s/it]Monitoring:  42%|████▏     | 11/26 [00:49<00:51,  3.43s/it]Monitoring:  46%|████▌     | 12/26 [00:52<00:46,  3.30s/it]Monitoring:  50%|█████     | 13/26 [00:53<00:36,  2.77s/it]Monitoring:  54%|█████▍    | 14/26 [00:54<00:24,  2.01s/it]Monitoring:  58%|█████▊    | 15/26 [00:58<00:30,  2.79s/it]Monitoring:  62%|██████▏   | 16/26 [00:58<00:20,  2.02s/it]Monitoring:  65%|██████▌   | 17/26 [00:59<00:13,  1.46s/it]Monitoring:  69%|██████▉   | 18/26 [01:01<00:14,  1.76s/it]Monitoring:  73%|███████▎  | 19/26 [01:03<00:12,  1.76s/it]Monitoring:  77%|███████▋  | 20/26 [01:10<00:21,  3.53s/it]Monitoring:  81%|████████  | 21/26 [01:12<00:15,  3.03s/it]Monitoring:  85%|████████▍ | 22/26 [01:14<00:10,  2.61s/it]Monitoring:  88%|████████▊ | 23/26 [01:15<00:06,  2.30s/it]Monitoring:  92%|█████████▏| 24/26 [01:18<00:04,  2.25s/it]Monitoring:  96%|█████████▌| 25/26 [01:22<00:02,  2.95s/it]Monitoring: 100%|██████████| 26/26 [01:29<00:00,  4.11s/it]Monitoring: 100%|██████████| 26/26 [01:29<00:00,  3.44s/it]
+Saved 26 trajectories to data/scored/ag-os-attack:
+  data/scored/ag-os-attack/1166e4e537874e638eca92e0dd87145b.json
+  data/scored/ag-os-attack/14fd1a881fa44a11b670b6ff51e1fb6a.json
+  data/scored/ag-os-attack/21b81e3def63444f8ed074f30d488a25.json
+  data/scored/ag-os-attack/254c24e420b045c7b02b4ef738aea9e7.json
+  data/scored/ag-os-attack/33f611d5d759485cb11fc456e5a8e1de.json
+  data/scored/ag-os-attack/3a766baca0994b479fd1a6c00cbca94f.json
+  data/scored/ag-os-attack/48cea717b5bd4adf8545e24aaa434396.json
+  data/scored/ag-os-attack/4b37c4786ac44152919e1596d72efe4d.json
+  data/scored/ag-os-attack/53a7c8bee2e04b2aa7e3cb41e1c133e3.json
+  data/scored/ag-os-attack/5e3eb67bf9b442418b92f58d0456bf72.json
+  data/scored/ag-os-attack/729dbd1d89da403cadb1705c477bec53.json
+  data/scored/ag-os-attack/805b9056b69a49bea7a159dc170cb946.json
+  data/scored/ag-os-attack/81b9341893944bd1a0a1ef18120110b3.json
+  data/scored/ag-os-attack/9371b302f9b7436bbbe393c81c676759.json
+  data/scored/ag-os-attack/958c75c71b3240b3bc14d3fa5eabbedd.json
+  data/scored/ag-os-attack/9a1650ba6e7146569380d66dedf59343.json
+  data/scored/ag-os-attack/aa40954584e74830927a170f5e0da8fe.json
+  data/scored/ag-os-attack/ad658da1ca18441a9c7188fa66002757.json
+  data/scored/ag-os-attack/b1d313f44ed640179abdbd6220db43ea.json
+  data/scored/ag-os-attack/bf8c5894574b4d519f3b930c3ba3ac88.json
+  data/scored/ag-os-attack/c70597be0a3045c2b0c8390b72767441.json
+  data/scored/ag-os-attack/d7beabc23ea14d5094ea0879c8753980.json
+  data/scored/ag-os-attack/d9d2722c4cf24f54a1cfd8d81abfeb17.json
+  data/scored/ag-os-attack/e8eed76d8fb546c196b3175bc74ada4b.json
+  data/scored/ag-os-attack/edf71b2baa30425eb81ba7d989ec06cc.json
+  data/scored/ag-os-attack/f95a21d066ed464d8791e6b83792ac6b.json
+Saved 26 monitored trajectory(ies) to: data/scored/ag-os-attack

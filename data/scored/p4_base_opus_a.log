@@ -1,0 +1,87 @@
+Action monitor: multi
+Trajectory monitor: mean-quick
+inspect_ai v0.3.240
+- hooks enabled: 1
+  control_tower/control-tower-cost-sink: Record model usage into Control Tower 
+cost sinks.
+
+Loading trajectories from: data/sample/opus-attack
+Found 26 trajectory(ies)
+Max concurrent trajectories: 6
+Running action monitor: multi
+Monitoring:   0%|          | 0/1264 [00:00<?, ?it/s]Monitoring:   3%|▎         | 35/1264 [00:01<00:50, 24.22it/s]Monitoring:   7%|▋         | 86/1264 [00:01<00:17, 67.84it/s]Monitoring:   9%|▉         | 117/1264 [00:01<00:12, 91.88it/s]Monitoring:  12%|█▏        | 157/1264 [00:01<00:08, 133.46it/s]Monitoring:  17%|█▋        | 211/1264 [00:01<00:05, 199.10it/s]Monitoring:  21%|██▏       | 270/1264 [00:01<00:03, 271.81it/s]Monitoring:  25%|██▌       | 317/1264 [00:02<00:03, 304.35it/s]Monitoring:  29%|██▊       | 362/1264 [00:02<00:02, 334.11it/s]Monitoring:  32%|███▏      | 407/1264 [00:02<00:03, 236.16it/s]Monitoring:  35%|███▍      | 442/1264 [00:02<00:04, 184.99it/s]Monitoring:  37%|███▋      | 470/1264 [00:02<00:04, 195.06it/s]Monitoring:  39%|███▉      | 497/1264 [00:03<00:04, 170.21it/s]Monitoring:  41%|████      | 520/1264 [00:03<00:04, 167.57it/s]Monitoring:  43%|████▎     | 541/1264 [00:03<00:05, 143.12it/s]Monitoring:  44%|████▍     | 558/1264 [00:03<00:04, 145.88it/s]Monitoring:  45%|████▌     | 575/1264 [00:03<00:05, 122.80it/s]Monitoring:  47%|████▋     | 590/1264 [00:03<00:05, 119.36it/s]Monitoring:  48%|████▊     | 605/1264 [00:04<00:05, 124.58it/s]Monitoring:  49%|████▉     | 619/1264 [00:04<00:09, 67.09it/s] Monitoring:  53%|█████▎    | 675/1264 [00:04<00:04, 137.47it/s]Monitoring:  58%|█████▊    | 728/1264 [00:04<00:02, 203.56it/s]Monitoring:  62%|██████▏   | 780/1264 [00:04<00:01, 264.40it/s]Monitoring:  66%|██████▌   | 828/1264 [00:05<00:01, 311.02it/s]Monitoring:  69%|██████▉   | 870/1264 [00:05<00:01, 328.32it/s]Monitoring:  73%|███████▎  | 927/1264 [00:05<00:00, 387.30it/s]Monitoring:  79%|███████▊  | 994/1264 [00:05<00:00, 460.07it/s]Monitoring:  83%|████████▎ | 1046/1264 [00:05<00:00, 257.08it/s]Monitoring:  86%|████████▌ | 1086/1264 [00:06<00:01, 170.48it/s]Monitoring:  88%|████████▊ | 1117/1264 [00:06<00:00, 156.37it/s]Monitoring:  90%|█████████ | 1142/1264 [00:06<00:00, 152.26it/s]Monitoring:  92%|█████████▏| 1164/1264 [00:06<00:00, 149.09it/s]Monitoring:  94%|█████████▍| 1188/1264 [00:06<00:00, 163.72it/s]Monitoring:  96%|█████████▌| 1215/1264 [00:07<00:00, 183.43it/s]Monitoring:  98%|█████████▊| 1238/1264 [00:07<00:00, 191.76it/s]Monitoring: 100%|██████████| 1264/1264 [00:07<00:00, 176.18it/s]
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score>...</score> tag, retrying...
+
+Monitor cost: $0.00 across 1264 actions
+  openrouter/openai/gpt-5-nano: $0.00
+Running trajectory monitor: mean-quick
+Monitoring:   0%|          | 0/26 [00:00<?, ?it/s]Monitoring:   4%|▍         | 1/26 [01:08<28:33, 68.52s/it]Monitoring:   8%|▊         | 2/26 [01:19<13:50, 34.61s/it]Monitoring:  12%|█▏        | 3/26 [01:20<07:28, 19.52s/it]Monitoring:  15%|█▌        | 4/26 [01:43<07:34, 20.67s/it]Monitoring:  19%|█▉        | 5/26 [01:46<05:02, 14.41s/it]Monitoring:  23%|██▎       | 6/26 [02:05<05:15, 15.78s/it]Monitoring:  27%|██▋       | 7/26 [02:25<05:29, 17.33s/it]Monitoring:  31%|███       | 8/26 [02:32<04:09, 13.89s/it]Monitoring:  35%|███▍      | 9/26 [02:43<03:41, 13.03s/it]Monitoring:  38%|███▊      | 10/26 [03:05<04:16, 16.01s/it]Monitoring:  42%|████▏     | 11/26 [03:09<03:03, 12.26s/it]Monitoring:  46%|████▌     | 12/26 [03:22<02:52, 12.32s/it]Monitoring:  50%|█████     | 13/26 [03:30<02:23, 11.05s/it]Monitoring:  54%|█████▍    | 14/26 [03:43<02:18, 11.55s/it]Monitoring:  58%|█████▊    | 15/26 [03:51<01:56, 10.57s/it]Monitoring:  62%|██████▏   | 16/26 [04:23<02:50, 17.04s/it]Monitoring:  65%|██████▌   | 17/26 [04:40<02:33, 17.01s/it]Monitoring:  69%|██████▉   | 18/26 [04:42<01:40, 12.53s/it]Monitoring:  73%|███████▎  | 19/26 [04:45<01:07,  9.61s/it]Monitoring:  77%|███████▋  | 20/26 [04:47<00:43,  7.30s/it]Monitoring:  81%|████████  | 21/26 [05:32<01:33, 18.74s/it]Monitoring:  85%|████████▍ | 22/26 [05:34<00:55, 13.81s/it]Monitoring:  88%|████████▊ | 23/26 [05:35<00:29,  9.82s/it]Monitoring:  92%|█████████▏| 24/26 [05:46<00:20, 10.33s/it]Monitoring:  96%|█████████▌| 25/26 [05:49<00:08,  8.07s/it]Monitoring: 100%|██████████| 26/26 [06:49<00:00, 23.53s/it]Monitoring: 100%|██████████| 26/26 [06:49<00:00, 15.74s/it]
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 2 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+Saved 26 trajectories to data/scored/opt-base-opus-attack:
+  data/scored/opt-base-opus-attack/052ea99989bb43b3ba6d15b2f403b0d3.json
+  data/scored/opt-base-opus-attack/072ca7d13c5a49a0a5786a74726093af.json
+  data/scored/opt-base-opus-attack/155d8ac9314b40319b2eb4d1b56e21ae.json
+  data/scored/opt-base-opus-attack/191d7320e9eb4dc0b81c938346bfcfec.json
+  data/scored/opt-base-opus-attack/3a336024b5b1499580494553f1901c08.json
+  data/scored/opt-base-opus-attack/3b124b9621ff430db86d1682b4e04387.json
+  data/scored/opt-base-opus-attack/439829ad7a2a4247a30de91626f53dc3.json
+  data/scored/opt-base-opus-attack/5403f30215964c5dbcbe7672556bae9c.json
+  data/scored/opt-base-opus-attack/56f298ef54f5426cb1efd480e5f1fb9d.json
+  data/scored/opt-base-opus-attack/67b959f024d04ce89cb3118ea304e110.json
+  data/scored/opt-base-opus-attack/73d1caf14613451e949f77f98a302ccb.json
+  data/scored/opt-base-opus-attack/7beb871c29fb4c08b9f51db70d15aa06.json
+  data/scored/opt-base-opus-attack/7f65b0f1d3994283aa9122937e6d77a0.json
+  data/scored/opt-base-opus-attack/872d22e7ab0f438daee734abd055a766.json
+  data/scored/opt-base-opus-attack/8ebbe707f42a4d35927fb576ee2e08f9.json
+  data/scored/opt-base-opus-attack/9403e039fef14aa1b5ebdd9be9b00a5e.json
+  data/scored/opt-base-opus-attack/a4e1c98c7f92435ebfae31b54322937e.json
+  data/scored/opt-base-opus-attack/b35176b953544595836c5242e6ea52e0.json
+  data/scored/opt-base-opus-attack/b562a6c3028042c99eed615764e2b69a.json
+  data/scored/opt-base-opus-attack/ba1f071188114e6daef6d33ede54f45c.json
+  data/scored/opt-base-opus-attack/be4469d9e94f4031a3cac084d38d022c.json
+  data/scored/opt-base-opus-attack/c34e20e570974eccb5861c9266f1c9d4.json
+  data/scored/opt-base-opus-attack/d7287134775a440b9ea7f85dc25ee395.json
+  data/scored/opt-base-opus-attack/f1ba1e562eb447ec9b0ff0912a9a251f.json
+  data/scored/opt-base-opus-attack/f275d4a81ed44d6fbc337f7c732f5a13.json
+  data/scored/opt-base-opus-attack/f48c96c0b8894d1eadeb522a8e481ed5.json
+Saved 26 monitored trajectory(ies) to: data/scored/opt-base-opus-attack

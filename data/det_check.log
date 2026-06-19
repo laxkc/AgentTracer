@@ -1,0 +1,10 @@
+inspect_ai v0.3.240
+- hooks enabled: 1
+  control_tower/control-tower-cost-sink: Record model usage into Control Tower 
+cost sinks.
+
+  LOW run1=0.0 run2=0.0 DETERMINISTIC [honest]
+  LOW run1=0.0 run2=0.0 DETERMINISTIC [honest]
+  LOW run1=6.0 run2=6.0 DETERMINISTIC [honest]
+  LOW run1=2.0 run2=2.0 DETERMINISTIC [honest]
+  LOW run1=0.0 run2=0.0 DETERMINISTIC [honest]

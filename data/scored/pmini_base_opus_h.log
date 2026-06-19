@@ -1,0 +1,44 @@
+Action monitor: multi
+Trajectory monitor: mean-quick
+inspect_ai v0.3.240
+- hooks enabled: 1
+  control_tower/control-tower-cost-sink: Record model usage into Control Tower 
+cost sinks.
+
+Loading trajectories from: data/sample/opus-honest
+Found 23 trajectory(ies)
+Max concurrent trajectories: 6
+Running action monitor: multi
+Monitoring:   0%|          | 0/1605 [00:00<?, ?it/s]Monitoring:   0%|          | 7/1605 [00:00<02:58,  8.98it/s]Monitoring:   3%|▎         | 55/1605 [00:00<00:18, 81.73it/s]Monitoring:   5%|▌         | 84/1605 [00:01<00:13, 110.09it/s]Monitoring:   8%|▊         | 121/1605 [00:01<00:09, 159.72it/s]Monitoring:  10%|█         | 164/1605 [00:01<00:06, 214.71it/s]Monitoring:  12%|█▏        | 198/1605 [00:01<00:12, 117.14it/s]Monitoring:  17%|█▋        | 265/1605 [00:01<00:06, 192.34it/s]Monitoring:  19%|█▉        | 303/1605 [00:02<00:06, 201.99it/s]Monitoring:  22%|██▏       | 351/1605 [00:02<00:05, 250.14it/s]Monitoring:  24%|██▍       | 389/1605 [00:02<00:05, 226.91it/s]Monitoring:  26%|██▌       | 421/1605 [00:02<00:07, 149.52it/s]Monitoring:  28%|██▊       | 446/1605 [00:02<00:07, 151.58it/s]Monitoring:  29%|██▉       | 468/1605 [00:03<00:07, 153.82it/s]Monitoring:  30%|███       | 489/1605 [00:03<00:08, 127.12it/s]Monitoring:  34%|███▍      | 544/1605 [00:03<00:05, 195.80it/s]Monitoring:  36%|███▌      | 572/1605 [00:03<00:06, 154.04it/s]Monitoring:  37%|███▋      | 598/1605 [00:03<00:05, 171.19it/s]Monitoring:  39%|███▉      | 632/1605 [00:03<00:04, 202.81it/s]Monitoring:  41%|████▏     | 666/1605 [00:04<00:04, 231.75it/s]Monitoring:  43%|████▎     | 695/1605 [00:04<00:08, 106.48it/s]Monitoring:  45%|████▌     | 724/1605 [00:04<00:06, 128.71it/s]Monitoring:  47%|████▋     | 751/1605 [00:04<00:05, 148.04it/s]Monitoring:  48%|████▊     | 775/1605 [00:05<00:05, 142.45it/s]Monitoring:  50%|████▉     | 796/1605 [00:05<00:06, 115.82it/s]Monitoring:  51%|█████     | 813/1605 [00:05<00:08, 98.02it/s] Monitoring:  52%|█████▏    | 827/1605 [00:05<00:08, 95.75it/s]Monitoring:  52%|█████▏    | 840/1605 [00:06<00:08, 91.23it/s]Monitoring:  53%|█████▎    | 852/1605 [00:06<00:07, 96.28it/s]Monitoring:  54%|█████▍    | 871/1605 [00:06<00:06, 115.01it/s]Monitoring:  56%|█████▌    | 899/1605 [00:06<00:04, 151.75it/s]Monitoring:  58%|█████▊    | 936/1605 [00:06<00:03, 203.49it/s]Monitoring:  60%|█████▉    | 960/1605 [00:06<00:03, 201.37it/s]Monitoring:  61%|██████    | 983/1605 [00:06<00:05, 115.57it/s]Monitoring:  63%|██████▎   | 1004/1605 [00:07<00:04, 131.47it/s]Monitoring:  65%|██████▍   | 1039/1605 [00:07<00:03, 172.67it/s]Monitoring:  67%|██████▋   | 1072/1605 [00:07<00:02, 206.47it/s]Monitoring:  69%|██████▉   | 1107/1605 [00:07<00:02, 238.49it/s]Monitoring:  71%|███████   | 1136/1605 [00:07<00:03, 137.43it/s]Monitoring:  74%|███████▎  | 1180/1605 [00:07<00:02, 186.80it/s]Monitoring:  76%|███████▌  | 1216/1605 [00:07<00:01, 219.05it/s]Monitoring:  79%|███████▊  | 1260/1605 [00:08<00:01, 265.63it/s]Monitoring:  81%|████████  | 1295/1605 [00:08<00:01, 204.40it/s]Monitoring:  84%|████████▎ | 1344/1605 [00:08<00:01, 259.17it/s]Monitoring:  87%|████████▋ | 1392/1605 [00:08<00:00, 306.42it/s]Monitoring:  90%|████████▉ | 1441/1605 [00:08<00:00, 348.84it/s]Monitoring:  92%|█████████▏| 1483/1605 [00:08<00:00, 324.15it/s]Monitoring:  95%|█████████▍| 1521/1605 [00:09<00:00, 179.56it/s]Monitoring:  97%|█████████▋| 1550/1605 [00:09<00:00, 163.59it/s]Monitoring:  98%|█████████▊| 1574/1605 [00:09<00:00, 149.94it/s]Monitoring: 100%|██████████| 1605/1605 [00:09<00:00, 163.68it/s]
+
+Monitor cost: $0.00 across 1605 actions
+  openrouter/openai/gpt-5-mini: $0.00
+Running trajectory monitor: mean-quick
+Monitoring:   0%|          | 0/23 [00:00<?, ?it/s]Monitoring:   4%|▍         | 1/23 [01:02<22:52, 62.39s/it]Monitoring:   9%|▊         | 2/23 [01:19<12:29, 35.69s/it]Monitoring:  13%|█▎        | 3/23 [01:27<07:46, 23.30s/it]Monitoring:  17%|█▋        | 4/23 [01:32<05:01, 15.87s/it]Monitoring:  22%|██▏       | 5/23 [01:48<04:47, 15.99s/it]Monitoring:  26%|██▌       | 6/23 [02:13<05:25, 19.14s/it]Monitoring:  30%|███       | 7/23 [02:15<03:35, 13.48s/it]Monitoring:  35%|███▍      | 8/23 [02:24<02:57, 11.83s/it]Monitoring:  39%|███▉      | 9/23 [02:25<02:01,  8.68s/it]Monitoring:  43%|████▎     | 10/23 [03:02<03:45, 17.33s/it]Monitoring:  48%|████▊     | 11/23 [03:11<02:57, 14.80s/it]Monitoring:  52%|█████▏    | 12/23 [03:15<02:05, 11.41s/it]Monitoring:  57%|█████▋    | 13/23 [03:16<01:24,  8.41s/it]Monitoring:  61%|██████    | 14/23 [03:27<01:22,  9.11s/it]Monitoring:  65%|██████▌   | 15/23 [03:36<01:11,  8.99s/it]Monitoring:  70%|██████▉   | 16/23 [03:45<01:03,  9.05s/it]Monitoring:  74%|███████▍  | 17/23 [03:58<01:01, 10.19s/it]Monitoring:  78%|███████▊  | 18/23 [04:35<01:31, 18.23s/it]Monitoring:  83%|████████▎ | 19/23 [04:43<01:01, 15.28s/it]Monitoring:  87%|████████▋ | 20/23 [04:47<00:35, 11.95s/it]Monitoring:  91%|█████████▏| 21/23 [04:51<00:18,  9.37s/it]Monitoring:  96%|█████████▌| 22/23 [04:56<00:08,  8.05s/it]Monitoring: 100%|██████████| 23/23 [05:18<00:00, 12.30s/it]Monitoring: 100%|██████████| 23/23 [05:18<00:00, 13.84s/it]
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+WARNING: invalid response format after 1 attempts: Missing <score> tag in response, retrying...
+Saved 23 trajectories to data/scored/pmini-base-opus-honest:
+  data/scored/pmini-base-opus-honest/011e9cc0832b47109488082a0f0f9094.json
+  data/scored/pmini-base-opus-honest/20f031c8bf6f464eac194862478d96a1.json
+  data/scored/pmini-base-opus-honest/32b960347c9f472987ea0e17e4bf93aa.json
+  data/scored/pmini-base-opus-honest/342207ce40094d718adc697cf7277732.json
+  data/scored/pmini-base-opus-honest/3a5502cff72a4729957150e18056758c.json
+  data/scored/pmini-base-opus-honest/3e5e62e578424219ad68ee12765e905a.json
+  data/scored/pmini-base-opus-honest/3f93f61df4bc417aa72db200ea666bdc.json
+  data/scored/pmini-base-opus-honest/4ce0223d9d2f4a44a9b72f10ab72d5ef.json
+  data/scored/pmini-base-opus-honest/6047a9359139421198835bd4d45207f9.json
+  data/scored/pmini-base-opus-honest/65636cce156b4607b6edbb47451683db.json
+  data/scored/pmini-base-opus-honest/7a6d1cac16594ace8a74d329ec4757a4.json
+  data/scored/pmini-base-opus-honest/85422bf27185404da2fdedb434e7a028.json
+  data/scored/pmini-base-opus-honest/8ddc83642140486bafd267b2a9f88e03.json
+  data/scored/pmini-base-opus-honest/aec3c21f9f2244039b2e065f885d8f4b.json
+  data/scored/pmini-base-opus-honest/c457144385de48a38a6a3b8abaa7510b.json
+  data/scored/pmini-base-opus-honest/c563dcad054040949c2a7266f6ffcedc.json
+  data/scored/pmini-base-opus-honest/cdf95c5b58c94aef8bbac19b4b6bee88.json
+  data/scored/pmini-base-opus-honest/d38373ecf2124d3c93c6e0ef1cae435e.json
+  data/scored/pmini-base-opus-honest/ddabf63a9f0a4604a1e8a2191186ddf7.json
+  data/scored/pmini-base-opus-honest/de64b28129aa4b1689ad5c050bbb9289.json
+  data/scored/pmini-base-opus-honest/e0e94f2c8d7b4f05bc6c6a1f55a0ba8b.json
+  data/scored/pmini-base-opus-honest/e8527f6b6cbc41eb80530b544b93b1a2.json
+  data/scored/pmini-base-opus-honest/f323d820ee9f4a51a42a0bdb618d7792.json
+Saved 23 monitored trajectory(ies) to: data/scored/pmini-base-opus-honest

@@ -1,0 +1,36 @@
+Trajectory monitor: monitor:my_traj_monitor
+Loading trajectories from: data/sample/opus-strategies-honest
+Found 23 trajectory(ies)
+Max concurrent trajectories: 6
+Running trajectory monitor: monitor:my_traj_monitor
+Monitoring:   0%|          | 0/23 [00:00<?, ?it/s]inspect_ai v0.3.240
+- hooks enabled: 1
+  control_tower/control-tower-cost-sink: Record model usage into Control Tower 
+cost sinks.
+
+Monitoring:   4%|▍         | 1/23 [00:06<02:12,  6.03s/it]Monitoring:   9%|▊         | 2/23 [00:06<00:54,  2.61s/it]Monitoring:  13%|█▎        | 3/23 [00:07<00:44,  2.21s/it]Monitoring:  17%|█▋        | 4/23 [00:11<00:55,  2.90s/it]Monitoring:  22%|██▏       | 5/23 [00:15<00:53,  2.97s/it]Monitoring:  26%|██▌       | 6/23 [00:15<00:34,  2.01s/it]Monitoring:  30%|███       | 7/23 [00:15<00:25,  1.62s/it]Monitoring:  35%|███▍      | 8/23 [00:19<00:32,  2.18s/it]Monitoring:  39%|███▉      | 9/23 [00:19<00:21,  1.53s/it]Monitoring:  43%|████▎     | 10/23 [00:20<00:16,  1.25s/it]Monitoring:  48%|████▊     | 11/23 [00:22<00:17,  1.50s/it]Monitoring:  52%|█████▏    | 12/23 [00:22<00:14,  1.28s/it]Monitoring:  57%|█████▋    | 13/23 [00:24<00:13,  1.34s/it]Monitoring:  61%|██████    | 14/23 [00:24<00:09,  1.02s/it]Monitoring:  65%|██████▌   | 15/23 [00:26<00:10,  1.31s/it]Monitoring:  70%|██████▉   | 16/23 [00:27<00:07,  1.02s/it]Monitoring:  74%|███████▍  | 17/23 [00:27<00:04,  1.32it/s]Monitoring:  78%|███████▊  | 18/23 [00:28<00:05,  1.06s/it]Monitoring:  83%|████████▎ | 19/23 [00:29<00:03,  1.03it/s]Monitoring:  87%|████████▋ | 20/23 [00:29<00:02,  1.31it/s]Monitoring:  91%|█████████▏| 21/23 [00:46<00:10,  5.42s/it]Monitoring:  96%|█████████▌| 22/23 [00:48<00:04,  4.34s/it]Monitoring: 100%|██████████| 23/23 [00:48<00:00,  3.22s/it]Monitoring: 100%|██████████| 23/23 [00:48<00:00,  2.12s/it]
+Saved 23 trajectories to data/scored/ag-os-honest:
+  data/scored/ag-os-honest/031a6ac6a2c64f3bb357eff9c43eaca3.json
+  data/scored/ag-os-honest/08455104c3684147863e7e358325b62d.json
+  data/scored/ag-os-honest/08e240e7079c4e3b8730253f7ddc60f0.json
+  data/scored/ag-os-honest/09069a35262846a2928f7af76354dcf4.json
+  data/scored/ag-os-honest/0f8f39dcf0dc45f4bb40dfdaa11cc0c6.json
+  data/scored/ag-os-honest/25e58a90fe57482eb9af8bf662f40f02.json
+  data/scored/ag-os-honest/30b7e1532a3e44cf9bf050c9efd89b9a.json
+  data/scored/ag-os-honest/3c8726e3f9a24a818d6c54b1f02c789b.json
+  data/scored/ag-os-honest/3fc4c4cc4ef24b5f9d3cb4b7efa885c2.json
+  data/scored/ag-os-honest/480f262829c0491db718957f459dbbe1.json
+  data/scored/ag-os-honest/4c736022e5aa4e0285ebe410e77ca443.json
+  data/scored/ag-os-honest/5cb8a17593d54cc8be7175d27473f578.json
+  data/scored/ag-os-honest/5e42e0a28e9d4536b74eced98440366a.json
+  data/scored/ag-os-honest/78cb933726fc4fdeb331b082bed403ac.json
+  data/scored/ag-os-honest/a2f706702ba74c4d8cea7413f4a40156.json
+  data/scored/ag-os-honest/a9b7700bcc714ab3b7bd35dd747277e2.json
+  data/scored/ag-os-honest/b40d233243da4879aadf291a3b472990.json
+  data/scored/ag-os-honest/be5e7978dced475683d4bd549297030b.json
+  data/scored/ag-os-honest/eae61cf3015c46c0be1e37edd7983546.json
+  data/scored/ag-os-honest/ebb10b739d98442b96d53e4733ae1624.json
+  data/scored/ag-os-honest/f9e5889ee9844ac1be71b6ab310a0e03.json
+  data/scored/ag-os-honest/fa2cf4edbec645e2b35d70bc3c390ce0.json
+  data/scored/ag-os-honest/feb920410b264da38347128e0b8d73ba.json
+Saved 23 monitored trajectory(ies) to: data/scored/ag-os-honest
