@@ -1,4 +1,4 @@
-# Results — AgentTracer (Track A)
+# Results — AgentTracer
 
 All numbers: public `ram-data-public` trajectories, **pooled across the 3 hardest attackers**
 (opus-strategies + opus + sonnet → 69 honest / 78 attack, **74 successful**, ASR 94.9%),

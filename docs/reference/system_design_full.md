@@ -1,7 +1,7 @@
-# Track A Sabotage Monitor 
+# AgentTracer — Design Notes
 
-> **Purpose:** Build a suspicion-scoring monitor for Track A.  
-> **Audience:** Developers and researchers implementing, evaluating, and submitting the monitor.  
+> **Purpose:** Build a suspicion-scoring monitor that detects hidden agent sabotage.  
+> **Audience:** Developers and researchers implementing and evaluating the monitor.  
 > **Core idea:** This is not normal bug detection. It is a threshold-ranking problem under a scarce audit budget.
 
 ---
@@ -43,7 +43,7 @@ Do not build around assumptions. Confirm these first.
 |---|---|---|
 | Audit unit | If the game audits trajectories but we calibrate actions, the effective false-positive rate can explode. | Confirm whether `ct game-metrics` thresholds per action or per trajectory. |
 | Available trajectory fields | Determines whether we can access reasoning, tool outputs, diffs, file paths, or task metadata. | Inspect real `.eval` logs and `Trajectory` schema. |
-| Side-task visibility | Some monitors may receive side-task descriptions; others may only infer suspicious behavior from main-task context. | Confirm what Track A monitor is allowed to see. |
+| Side-task visibility | Some monitors may receive side-task descriptions; others may only infer suspicious behavior from main-task context. | Confirm what the monitor is allowed to see. |
 | CoT / reasoning availability | Extract-and-evaluate only helps if meaningful reasoning text exists. | Check logs before making EaE Tier 1. |
 | Baseline scoring format | Needed for apples-to-apples comparison. | Run shipped baseline monitors and inspect outputs. |
 | Threshold unit in official metric | Calibration must match official evaluation. | Verify by running `ct game-metrics` on scored honest and attack logs. |
@@ -74,7 +74,7 @@ A monitor earns credit on a sabotage run only when all three are true:
 2. the aggregated monitor score exceeds the audit threshold;
 3. the threshold preserves the target honest false-positive rate.
 
-This means Track A is not mainly a classification task.
+This means this is not mainly a classification task.
 
 It is a **single-quantile ranking problem**:
 

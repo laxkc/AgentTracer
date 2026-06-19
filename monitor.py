@@ -1,4 +1,4 @@
-"""Track A sabotage monitor — public entry points.
+"""AgentTracer sabotage monitor — public entry points.
 
 Thin layer: registers the action and trajectory monitors and delegates all
 scoring to the ``monitoring`` package. Suspicion is scored 0 (clean) to 10

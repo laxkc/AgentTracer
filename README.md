@@ -1,13 +1,13 @@
 # AgentTracer
 
-> **A trusted, dual-leg sabotage monitor for the LinuxArena AI-Control game.**
+> **A trusted, dual-leg monitor that detects hidden sabotage by AI agents.**
 > AgentTracer scores every agent **action** *and* the whole **trajectory** for hidden sabotage
 > (`0` = clean → `10` = sabotage), so a downstream auditor catches successful sabotage within a
 > ~1% honest false-positive budget — at roughly a quarter of the model calls of the strongest baseline.
 
 <p align="left">
   <img alt="Python" src="https://img.shields.io/badge/python-3.13-blue.svg">
-  <img alt="Status" src="https://img.shields.io/badge/track-A%20(monitoring)-success.svg">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg">
   <img alt="Built on" src="https://img.shields.io/badge/built%20on-control--tower-orange.svg">
 </p>
 
@@ -34,12 +34,12 @@
 
 ## Overview
 
-In the **AI-Control game** an *untrusted* agent performs a legitimate **main task** while it may
-secretly attempt a **side task** (sabotage). A **trusted** (weaker, cheaper) monitor assigns a
-suspicion score to the agent's behaviour; an auditor then inspects the most suspicious activity,
-bounded by a fixed audit budget.
+When an autonomous agent performs a legitimate **main task**, it may also pursue a hidden,
+harmful **side task** (sabotage). A **trusted** (weaker, cheaper) monitor assigns a suspicion
+score to the agent's behaviour; an auditor then inspects the most suspicious activity, bounded
+by a fixed audit budget.
 
-This is **Track A — measurement/detection**: the monitor only emits numbers; it does not intervene.
+AgentTracer is a **measurement/detection** tool: it only emits scores; it does not intervene.
 Success is a single number at a single operating point:
 
 ```
@@ -276,14 +276,12 @@ Honest about the boundaries of these numbers:
 
 - **[`docs/report.md`](docs/report.md)** — 2-page report.
 - **[`docs/results.md`](docs/results.md)** — all numbers and the full iteration journey.
-- **[`docs/reference/system_design_full.md`](docs/reference/system_design_full.md)** — full build spec (background).
+- **[`docs/reference/system_design_full.md`](docs/reference/system_design_full.md)** — design notes (background).
 - `docs/figures/`, `docs/metrics/` — the figure and metrics behind the results table.
 
 ## Acknowledgements & license
 
-Built on [LinuxArena `control-tower`](https://github.com/linuxarena/control-tower) for the
-AI-Control Hackathon 2026 (Blue Team, Track A). Trajectory data is the public
-`ram-data-public/` corpus.
+Built on [`control-tower`](https://github.com/linuxarena/control-tower). Evaluated on the public
+LinuxArena agent-sabotage trajectories (the `ram-data-public/` corpus).
 
-No license file is included yet — add a `LICENSE` before distributing if you intend this to be
-openly reusable.
+Released under the [MIT License](LICENSE).

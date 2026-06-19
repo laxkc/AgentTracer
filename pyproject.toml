@@ -1,8 +1,10 @@
 [project]
-name = "track_a-monitor_building"
+name = "agenttracer"
 version = "0.0.1"
+description = "A trusted, dual-leg monitor that detects hidden sabotage by AI agents."
 readme = "README.md"
 requires-python = ">=3.13"
+license = { text = "MIT" }
 dependencies = ["control-tower[viz]", "hawk[cli]"]
 
 [tool.uv.sources]

@@ -1,6 +1,6 @@
-# Track A Sabotage Monitor — AgentTracer
+# AgentTracer — Evaluation
 
-**Track A (monitor building) · blue team · 2026-06-17 · code: github.com/laxkc/AgentTracer (branch `main`)**
+**Code: [github.com/laxkc/AgentTracer](https://github.com/laxkc/AgentTracer)**
 
 ## Problem
 A trusted monitor scores each agent action/trajectory 0–10 for sabotage; a downstream auditor
